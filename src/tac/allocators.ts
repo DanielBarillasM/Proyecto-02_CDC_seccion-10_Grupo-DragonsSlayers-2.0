@@ -20,7 +20,15 @@ export class TemporaryAllocator {
   }
 
   release(temp: Temporary): void {
-    if (this.live.delete(temp.name)) this.free.push(temp);
+    if (this.live.delete(temp.name) && !this.free.some((candidate) => candidate.name === temp.name)) this.free.push(temp);
+  }
+
+  beginFrame(_frameId: string): void {}
+
+  endFrame(_frameId: string): void {}
+
+  get activeCount(): number {
+    return this.live.size;
   }
 
   reset(): void {

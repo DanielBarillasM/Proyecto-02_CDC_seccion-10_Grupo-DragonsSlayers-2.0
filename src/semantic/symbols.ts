@@ -24,6 +24,16 @@ export interface ParameterSymbol {
   type: SemanticType;
 }
 
+export interface SymbolStorage {
+  kind: "global" | "local" | "parameter" | "field" | "captured" | "function" | "class";
+  frameId?: string;
+  offset?: number;
+  size?: number;
+  alignment?: number;
+  label?: string;
+  captureIndex?: number;
+}
+
 export interface SymbolEntry {
   id: string;
   name: string;
@@ -39,4 +49,5 @@ export interface SymbolEntry {
   members?: string[];
   parentClass?: string;
   captured?: boolean;
+  storage?: SymbolStorage;
 }

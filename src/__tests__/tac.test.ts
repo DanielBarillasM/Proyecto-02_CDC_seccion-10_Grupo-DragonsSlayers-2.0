@@ -27,6 +27,14 @@ describe("TAC core", () => {
     expect(tacReportToText(result)).toContain("MARCOS");
   });
 
+  it("represents switch and try-catch control flow", () => {
+    const result = analyzeInput("let x: integer = 1; switch (x) { case 1: print(x); break; default: print(0); } try { print(x); } catch (error) { print(error); }", "tac");
+    const opcodes = result.tac.instructions.map((instruction) => instruction.op);
+    expect(opcodes).toContain("TRY_BEGIN");
+    expect(opcodes).toContain("CATCH_BEGIN");
+    expect(opcodes).toContain("IF_TRUE");
+  });
+
   it("resets labels and reuses released temporaries", () => {
     const labels = new LabelFactory();
     expect(labels.next("if")).toBe("L_if_0");

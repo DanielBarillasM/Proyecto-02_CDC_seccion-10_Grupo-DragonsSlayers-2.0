@@ -48,7 +48,7 @@ export interface FrameSlot {
   name: string;
   symbolId?: string;
   temporary?: string;
-  kind: "parameter" | "local" | "temporary";
+  kind: "parameter" | "local" | "temporary" | "captured";
   type: SemanticType;
   offset: number;
   size: number;
