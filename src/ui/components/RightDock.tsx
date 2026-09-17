@@ -1,7 +1,9 @@
+import { useMemo, useState } from "react";
 import { Braces, Database, Download, FlaskConical, FolderTree, ListChecks, Network, Split } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { downloadText, tacReportToText, tacToCsv } from "../../lib/downloads";
 import type { AnalyzeResult } from "../../lib/types";
 import type { ScopeInfo } from "../../semantic/scopes";
 import { DocumentationPanel } from "./DocumentationPanel";
@@ -23,6 +25,46 @@ interface RightDockProps {
   onTabChange: (tab: DockTabId) => void;
   onSelectScope: (chain: ScopeInfo[]) => void;
   onLoadTestSource?: (source: string) => void;
+}
+
+function TacInspector({ result }: { result: AnalyzeResult }) {
+  const [query, setQuery] = useState("");
+  const [opcode, setOpcode] = useState("all");
+  const instructions = result.tac.instructions;
+  const opcodes = useMemo(() => [...new Set(instructions.map((item) => item.op))].sort(), [instructions]);
+  const filtered = useMemo(() => instructions.filter((item) => {
+    const matchesOpcode = opcode === "all" || item.op === opcode;
+    const haystack = `${item.op} ${item.arg1?.value ?? ""} ${item.arg2?.value ?? ""} ${item.result?.value ?? ""}`.toLowerCase();
+    return matchesOpcode && haystack.includes(query.toLowerCase());
+  }), [instructions, opcode, query]);
+
+  return (
+    <div className="flex flex-col gap-3 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-head uppercase tracking-wide text-muted-foreground">Inspector TAC</p>
+        <div className="flex gap-1">
+          <button className="rounded border px-2 py-1 text-[11px]" onClick={() => downloadText("compiscript.tac", result.tac.formattedCode)}>TAC</button>
+          <button className="rounded border px-2 py-1 text-[11px]" onClick={() => downloadText("compiscript_tac.csv", tacToCsv(instructions), "text/csv;charset=utf-8")}>CSV</button>
+          <button className="rounded border px-2 py-1 text-[11px]" onClick={() => downloadText("reporte_tac.txt", tacReportToText(result))}>Reporte</button>
+        </div>
+      </div>
+      {result.tac.status === "skipped" ? <p className="text-sm text-muted-foreground">{result.tac.skipReason}</p> : (
+        <>
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+            {[['Instr.', result.tac.metrics.instructionCount], ['Temps.', result.tac.metrics.temporaryCount], ['Labels', result.tac.metrics.labelCount], ['Frames', result.tac.metrics.activationRecordCount]].map(([label, value]) => (
+              <div key={String(label)} className="rounded border bg-muted/20 p-2"><p className="text-[10px] text-muted-foreground">{label}</p><p className="font-mono text-sm">{value}</p></div>
+            ))}
+          </div>
+          <div className="flex gap-1.5">
+            <input aria-label="Filtrar TAC" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar operando..." className="min-w-0 flex-1 rounded border bg-background px-2 py-1 text-xs" />
+            <select aria-label="Filtrar opcode" value={opcode} onChange={(event) => setOpcode(event.target.value)} className="rounded border bg-background px-2 py-1 text-xs"><option value="all">Todos</option>{opcodes.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+          </div>
+          <pre className="max-h-72 overflow-auto rounded-md border bg-muted/30 p-3 font-mono text-xs leading-5">{filtered.map((item) => `${String(item.index).padStart(3, "0")}  ${item.op.padEnd(12, " ")}  ${item.result?.value ?? ""} ${item.arg1?.value ?? ""}${item.arg2 ? `, ${item.arg2.value}` : ""}`).join("\\n") || "Sin coincidencias."}</pre>
+          <p className="text-xs text-muted-foreground">Mostrando {filtered.length} de {instructions.length} instrucciones · reutilización de temporales: {result.tac.metrics.temporariesReuseCount}</p>
+        </>
+      )}
+    </div>
+  );
 }
 
 export function RightDock({ result, inputText, activeTab, onTabChange, onSelectScope, onLoadTestSource }: RightDockProps) {
@@ -95,20 +137,7 @@ export function RightDock({ result, inputText, activeTab, onTabChange, onSelectS
 
       <TabsContent value="tac" className="flex-1 overflow-hidden">
         <ScrollArea className="h-full">
-          {result ? (
-            <div className="flex flex-col gap-3 p-3">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-head uppercase tracking-wide text-muted-foreground">Código de tres direcciones</p>
-                <span className="text-xs text-muted-foreground">{result.tac.metrics.instructionCount} instrucciones</span>
-              </div>
-              {result.tac.status === "skipped" ? (
-                <p className="text-sm text-muted-foreground">{result.tac.skipReason}</p>
-              ) : (
-                <pre className="overflow-auto rounded-md border bg-muted/30 p-3 font-mono text-xs leading-5">{result.tac.formattedCode || "Sin instrucciones generadas."}</pre>
-              )}
-              <p className="text-xs text-muted-foreground">Temporales: {result.tac.metrics.temporaryCount} · Etiquetas: {result.tac.metrics.labelCount} · Marcos: {result.tac.metrics.activationRecordCount}</p>
-            </div>
-          ) : <EmptyPanel icon={<Split size={22} />} text="Ejecuta el análisis para generar TAC." />}
+          {result ? <TacInspector result={result} /> : <EmptyPanel icon={<Split size={22} />} text="Ejecuta el análisis para generar TAC." />}
         </ScrollArea>
       </TabsContent>
 

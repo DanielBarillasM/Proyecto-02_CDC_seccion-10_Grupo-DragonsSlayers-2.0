@@ -1,5 +1,6 @@
 import { displayType } from "../semantic/semanticTypes";
 import type { AnalyzeResult, TokenInfo } from "./types";
+import type { TacInstruction } from "../tac/types";
 
 /** Dispara la descarga de un archivo de texto desde el navegador. */
 export function downloadText(filename: string, content: string, mimeType = "text/plain;charset=utf-8"): void {
@@ -62,6 +63,42 @@ export function parseTreeToText(result: AnalyzeResult): string {
     result.formattedParseTree || "— (árbol vacío)"
   ];
   return lines.join("\n");
+}
+
+/** Exporta instrucciones TAC en CSV para trazabilidad y análisis externo. */
+export function tacToCsv(instructions: TacInstruction[]): string {
+  const escape = (value: string | number | undefined) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+  const operand = (item: TacInstruction["arg1"]) => item ? `${item.kind}:${String(item.value)}` : "";
+  const rows = instructions.map((instruction) => [
+    instruction.index,
+    instruction.op,
+    operand(instruction.arg1),
+    operand(instruction.arg2),
+    operand(instruction.result),
+    instruction.scopeId,
+    instruction.frameId ?? "",
+    instruction.source?.line ?? "",
+    instruction.source?.column ?? ""
+  ].map((value) => typeof value === "number" ? value : escape(value)).join(","));
+  return ["index,op,arg1,arg2,result,scopeId,frameId,line,column", ...rows].join("\\n");
+}
+
+/** Exporta una vista humana de TAC y sus marcos de activación. */
+export function tacReportToText(result: AnalyzeResult): string {
+  const tac = result.tac;
+  return [
+    "=== CÓDIGO DE TRES DIRECCIONES ===",
+    `Estado: ${tac.status}`,
+    `Instrucciones: ${tac.metrics.instructionCount}`,
+    `Temporales: ${tac.metrics.temporaryCount}`,
+    `Etiquetas: ${tac.metrics.labelCount}`,
+    `Marcos de activación: ${tac.metrics.activationRecordCount}`,
+    "",
+    tac.formattedCode || "— (sin instrucciones)",
+    "",
+    "=== MARCOS ===",
+    ...tac.activationRecords.map((frame) => `${frame.id} | ${frame.name} | slots=${frame.slots.length} | bytes=${frame.totalBytes}`)
+  ].join("\\n");
 }
 
 /** Exporta una vista humana de diagnósticos, símbolos, ámbitos y métricas. */

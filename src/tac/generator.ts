@@ -302,7 +302,7 @@ function buildActivationRecords(scopes: ScopeInfo[], symbols: SymbolEntry[]): Ac
       return {
         id: `frame-${scope.id}`,
         name: scope.name,
-        kind: (scope.kind === "global" ? "global" : scope.kind === "method" ? "method" : "function") as "global" | "function" | "method" | "constructor",
+        kind: scope.kind === "global" ? "global" : "function",
         scopeId: scope.id,
         parentFrameId: scope.parentId ? `frame-${scope.parentId}` : null,
         lexicalParentFrameId: scope.parentId ? `frame-${scope.parentId}` : null,

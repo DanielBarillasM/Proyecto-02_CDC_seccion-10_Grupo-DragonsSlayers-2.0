@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { analyzeInput } from "../lib/analyze";
+import { tacReportToText, tacToCsv } from "../lib/downloads";
 import { LabelFactory, TemporaryAllocator } from "../tac/allocators";
 
 describe("TAC core", () => {
@@ -17,6 +18,13 @@ describe("TAC core", () => {
     expect(result.tac.status).toBe("skipped");
     expect(result.tac.skipReason).toContain("errores semánticos");
     expect(result.semantic.errors.length).toBeGreaterThan(0);
+  });
+
+  it("exports TAC evidence with stable columns and frame metadata", () => {
+    const result = analyzeInput("let a: integer = 2 + 3; print(a);", "tac");
+    expect(tacToCsv(result.tac.instructions).split("\\n")[0]).toBe("index,op,arg1,arg2,result,scopeId,frameId,line,column");
+    expect(tacReportToText(result)).toContain("CÓDIGO DE TRES DIRECCIONES");
+    expect(tacReportToText(result)).toContain("MARCOS");
   });
 
   it("resets labels and reuses released temporaries", () => {
