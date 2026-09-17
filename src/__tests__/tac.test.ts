@@ -14,7 +14,8 @@ describe("TAC core", () => {
 
   it("skips TAC when semantic errors exist", () => {
     const result = analyzeInput("print(missing);", "tac");
-    expect(result.tac.status).toBe("completed");
+    expect(result.tac.status).toBe("skipped");
+    expect(result.tac.skipReason).toContain("errores semánticos");
     expect(result.semantic.errors.length).toBeGreaterThan(0);
   });
 

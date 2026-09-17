@@ -116,7 +116,18 @@ export function analyzeInput(
   }
 
   const accepted = syntaxAccepted && ((mode !== "semantic" && mode !== "tac") || semantic.errors.length === 0);
-  const tac = mode === "tac" && syntaxAccepted && semantic.status === "completed" ? generateTac(tree, semantic) : emptyTacResult(mode === "tac" ? "skipped" : "not-requested", mode === "tac" ? "La generación TAC requiere un programa válido." : undefined);
+  const tac = mode === "tac" && syntaxAccepted && semantic.status === "completed" && semantic.errors.length === 0
+    ? generateTac(tree, semantic)
+    : emptyTacResult(
+        mode === "tac" ? "skipped" : "not-requested",
+        mode === "tac"
+          ? lexicalErrors.length > 0 || syntaxErrors.length > 0
+            ? "El código intermedio no se generó porque existen errores léxicos o sintácticos."
+            : semantic.errors.length > 0
+              ? "El código intermedio no se generó porque existen errores semánticos."
+              : "La generación TAC requiere un programa válido."
+          : undefined
+      );
 
   return {
     language: "Compiscript",

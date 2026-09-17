@@ -11,7 +11,14 @@ function isRule(node: ParseTree | undefined): node is ParseTree & { children?: P
 function children(node: ParseTree): ParseTree[] { return (node as ParseTree & { children?: ParseTree[] }).children ?? []; }
 
 export function generateTac(program: ParseTree, semantic: SemanticAnalysisResult): TacGenerationResult {
-  if (semantic.status !== "completed") return emptyTacResult("skipped", "La generación TAC requiere un análisis semántico completado.");
+  if (semantic.status !== "completed" || semantic.errors.length > 0) {
+    return emptyTacResult(
+      "skipped",
+      semantic.errors.length > 0
+        ? "El código intermedio no se generó porque existen errores semánticos."
+        : "La generación TAC requiere un análisis semántico completado."
+    );
+  }
   const instructions: TacInstruction[] = []; const diagnostics: TacDiagnostic[] = []; const labels = new LabelFactory(); const temps = new TemporaryAllocator(); let index = 0;
   const emit = (op: TacInstruction["op"], args: Partial<TacInstruction>): TacInstruction => { const instruction = { index: index++, op, scopeId: semantic.scopeRootId ?? "scope-0", ...args }; instructions.push(instruction); return instruction; };
   const constant = (value: string): TacOperand => { if (value === "true" || value === "false") return tacOperand(value === "true"); if (value === "null") return tacOperand(null); const n = Number(value); return tacOperand(Number.isNaN(n) ? value : n); };
