@@ -10,7 +10,7 @@ export type TacOpcode =
   | "PRINT"
   | "NEW_ARRAY" | "ARRAY_GET" | "ARRAY_SET"
   | "GET_FIELD" | "SET_FIELD"
-  | "NEW_OBJECT"
+  | "NEW_OBJECT" | "MAKE_CLOSURE" | "CAPTURE" | "LOAD_CAPTURE"
   | "TRY_BEGIN" | "TRY_END" | "CATCH_BEGIN";
 
 export interface TacOperand {
@@ -145,6 +145,9 @@ export function formatTac(instructions: TacInstruction[]): string {
         case "ARRAY_SET": return `${a}[${b}] = ${r}`;
         case "GET_FIELD": return `${r} = ${a}.${b}`;
         case "SET_FIELD": return `${a}.${b} = ${r}`;
+        case "MAKE_CLOSURE": return `${r} = closure ${a}`;
+        case "CAPTURE": return `capture ${a} -> ${r}`;
+        case "LOAD_CAPTURE": return `${r} = loadcapture ${a}`;
         default:
           return `${r ? `${r} = ` : ""}${i.op.toLowerCase()}${a ? ` ${a}` : ""}${b ? `, ${b}` : ""}`;
       }

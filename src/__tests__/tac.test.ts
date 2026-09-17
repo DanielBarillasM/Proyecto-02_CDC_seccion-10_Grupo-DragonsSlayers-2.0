@@ -35,6 +35,13 @@ describe("TAC core", () => {
     expect(opcodes).toContain("IF_TRUE");
   });
 
+  it("attaches resolved symbols and non-global scopes to TAC", () => {
+    const result = analyzeInput("function f(value: integer): integer { let local: integer = value; return local; }", "tac");
+    const symbols = result.tac.instructions.flatMap((instruction) => [instruction.arg1, instruction.arg2, instruction.result]).filter((operand) => operand?.symbolId);
+    expect(symbols.length).toBeGreaterThan(0);
+    expect(new Set(result.tac.instructions.map((instruction) => instruction.scopeId)).size).toBeGreaterThan(1);
+  });
+
   it("resets labels and reuses released temporaries", () => {
     const labels = new LabelFactory();
     expect(labels.next("if")).toBe("L_if_0");

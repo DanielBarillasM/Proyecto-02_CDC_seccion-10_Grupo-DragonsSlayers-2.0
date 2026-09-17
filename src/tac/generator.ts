@@ -32,9 +32,29 @@ export function generateTac(program: ParseTree, semantic: SemanticAnalysisResult
   const labels = new LabelFactory();
   const temps = new TemporaryAllocator();
   let index = 0;
+  let currentScopeId = semantic.scopeRootId ?? "scope-0";
+  const scopeById = new Map(semantic.scopes.map((scope) => [scope.id, scope]));
+  const resolveSymbol = (name: string): SymbolEntry | undefined => {
+    let scopeId: string | null = currentScopeId;
+    while (scopeId) {
+      const found = semantic.symbols.find((symbol) => symbol.scopeId === scopeId && symbol.name === name);
+      if (found) return found;
+      scopeId = scopeById.get(scopeId)?.parentId ?? null;
+    }
+    return undefined;
+  };
+  const symbolOperand = (name: string): TacOperand => {
+    const symbol = resolveSymbol(name);
+    return symbol
+      ? { kind: "symbol", value: symbol.name, symbolId: symbol.id, frameId: symbol.storage?.frameId, offset: symbol.storage?.offset, type: symbol.type }
+      : tacOperand(name, "symbol");
+  };
+  const releaseOperand = (operand?: TacOperand): void => {
+    if (operand?.kind === "temporary") temps.release({ name: String(operand.value), type: operand.type ?? { kind: "primitive", name: "unknown" } });
+  };
 
   const emit = (op: TacInstruction["op"], args: Partial<TacInstruction>): TacInstruction => {
-    const instruction = { index: index++, op, scopeId: semantic.scopeRootId ?? "scope-0", ...args };
+    const instruction = { index: index++, op, scopeId: currentScopeId, ...args };
     instructions.push(instruction);
     return instruction;
   };
@@ -57,7 +77,18 @@ export function generateTac(program: ParseTree, semantic: SemanticAnalysisResult
     const raw = text(node);
     const kids = children(node);
 
-    if (!kids.length) return constant(raw);
+    if (!kids.length) {
+      if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(raw) && !["true", "false", "null"].includes(raw)) {
+        const symbol = resolveSymbol(raw);
+        if (symbol?.captured && symbol.scopeId !== currentScopeId) {
+          const loaded = temps.acquire({ kind: "primitive", name: "unknown" });
+          emit("LOAD_CAPTURE", { arg1: symbolOperand(raw), result: tacOperand(loaded.name, "temporary"), source: sourceOf(node as never) });
+          return tacOperand(loaded.name, "temporary");
+        }
+        return symbolOperand(raw);
+      }
+      return constant(raw);
+    }
 
     if (nodeName(node).includes("LeftHandSide")) {
       let current = expr(kids[0]);
@@ -116,6 +147,7 @@ export function generateTac(program: ParseTree, semantic: SemanticAnalysisResult
         result: tacOperand(t.name, "temporary"),
         source: sourceOf(node as never)
       });
+      releaseOperand(right);
       return tacOperand(t.name, "temporary");
     }
 
@@ -162,6 +194,8 @@ export function generateTac(program: ParseTree, semantic: SemanticAnalysisResult
           result: tacOperand(t.name, "temporary"),
           source: sourceOf(node as never)
         });
+        releaseOperand(left);
+        releaseOperand(right);
         return tacOperand(t.name, "temporary");
       }
     }
@@ -194,18 +228,25 @@ export function generateTac(program: ParseTree, semantic: SemanticAnalysisResult
       if (id && rhsIndex >= 0 && kids[rhsIndex]) {
         emit("MOV", {
           arg1: expr(kids[rhsIndex]),
-          result: tacOperand(text(id), "symbol"),
+          result: symbolOperand(text(id)),
           source: sourceOf(node as never)
         });
       }
     } else if (name.includes("AssignmentExpression")) {
       const eq = kids.findIndex((k) => text(k) === "=");
       if (eq > 0 && kids[eq + 1]) {
-        emit("MOV", {
-          arg1: expr(kids[eq + 1]),
-          result: tacOperand(text(kids[0]), "symbol"),
-          source: sourceOf(node as never)
-        });
+        const target = kids[0];
+        const value = expr(kids[eq + 1]);
+        const targetText = text(target);
+        if (targetText.includes("[") && children(target).length >= 3) {
+          const targetKids = children(target);
+          emit("ARRAY_SET", { arg1: expr(targetKids[0]), arg2: expr(targetKids[2]), result: value, source: sourceOf(node as never) });
+        } else if (targetText.includes(".") && children(target).length >= 3) {
+          const targetKids = children(target);
+          emit("SET_FIELD", { arg1: expr(targetKids[0]), arg2: symbolOperand(text(targetKids[2])), result: value, source: sourceOf(node as never) });
+        } else {
+          emit("MOV", { arg1: value, result: symbolOperand(targetText), source: sourceOf(node as never) });
+        }
       }
     } else if (name.includes("DoWhileStatement")) {
       const loopStart = labels.next("do_start");
@@ -342,8 +383,23 @@ export function generateTac(program: ParseTree, semantic: SemanticAnalysisResult
       }
     } else if (name.includes("FunctionDeclaration")) {
       const fnName = kids.find((k) => /^[A-Za-z_]/.test(text(k)) && text(k) !== "function");
+      const fnSymbol = fnName ? resolveSymbol(text(fnName)) : undefined;
       const fnEndLabel = labels.next("func_end");
-      emit("FUNC_BEGIN", { result: tacOperand(text(fnName), "symbol"), source: sourceOf(node as never) });
+      emit("FUNC_BEGIN", { result: fnSymbol ? symbolOperand(fnSymbol.name) : tacOperand(text(fnName), "symbol"), source: sourceOf(node as never) });
+      const previousScopeId = currentScopeId;
+      const functionScope = semantic.scopes.find((scope) => scope.kind === "function" && (scope.name === text(fnName) || scope.parentId === previousScopeId));
+      if (functionScope) currentScopeId = functionScope.id;
+      const captured = functionScope
+        ? semantic.symbols.filter((symbol) => symbol.captured && symbol.scopeId !== functionScope.id && symbol.kind !== "function" && symbol.kind !== "class")
+        : [];
+      if (captured.length) {
+        const closure = temps.acquire({ kind: "function", params: [], returnType: { kind: "primitive", name: "unknown" } });
+        emit("MAKE_CLOSURE", { arg1: fnSymbol ? symbolOperand(fnSymbol.name) : tacOperand(text(fnName), "symbol"), result: tacOperand(closure.name, "temporary"), source: sourceOf(node as never) });
+        captured.forEach((symbol, captureIndex) => emit("CAPTURE", {
+          arg1: symbolOperand(symbol.name),
+          result: { kind: "symbol", value: String(captureIndex), symbolId: symbol.id, frameId: symbol.storage?.frameId, offset: symbol.storage?.offset }
+        }));
+      }
 
       for (const child of kids) {
         const childName = nodeName(child);
@@ -353,6 +409,7 @@ export function generateTac(program: ParseTree, semantic: SemanticAnalysisResult
       }
 
       emit("FUNC_END", { result: tacOperand(fnEndLabel, "label") });
+      currentScopeId = previousScopeId;
       return;
     } else if (name.includes("ExpressionStatement")) {
       if (kids[0]) expr(kids[0]);
@@ -394,19 +451,34 @@ export function generateTac(program: ParseTree, semantic: SemanticAnalysisResult
   };
 }
 
+function storageSize(type: SymbolEntry["type"]): number {
+  if (type.kind === "primitive") return type.name === "boolean" ? 1 : type.name === "void" ? 0 : 8;
+  if (type.kind === "array" || type.kind === "instance" || type.kind === "class" || type.kind === "function") return 8;
+  return 8;
+}
+
 function buildClassLayouts(symbols: SymbolEntry[]): TacGenerationResult["classLayouts"] {
-  return symbols.filter((symbol) => symbol.kind === "class").map((classSymbol) => {
-    const fields = (classSymbol.members ?? [])
-      .map((name) => symbols.find((symbol) => symbol.name === name && symbol.kind === "field"))
-      .filter((field): field is SymbolEntry => Boolean(field))
-      .map((field, index) => ({ name: field.name, offset: index * 8, size: 8, type: field.type }));
-    return {
-      name: classSymbol.name,
-      classId: classSymbol.id,
-      parentClassId: classSymbol.parentClass,
-      fields,
-      instanceSize: fields.length * 8
-    };
+  const classes = symbols.filter((symbol) => symbol.kind === "class");
+  const byId = new Map(classes.map((symbol) => [symbol.id, symbol]));
+  const cache = new Map<string, TacGenerationResult["classLayouts"][number]["fields"]>();
+  const fieldsFor = (classSymbol: SymbolEntry): TacGenerationResult["classLayouts"][number]["fields"] => {
+    const cached = cache.get(classSymbol.id);
+    if (cached) return cached;
+    const parent = classSymbol.parentClass ? byId.get(classSymbol.parentClass) : undefined;
+    const fields = parent ? [...fieldsFor(parent)] : [];
+    for (const name of classSymbol.members ?? []) {
+      const field = symbols.find((symbol) => symbol.id === name || (symbol.name === name && symbol.kind === "field"));
+      if (!field || field.kind !== "field") continue;
+      const size = storageSize(field.type);
+      const offset = fields.reduce((total, entry) => total + entry.size, 0);
+      fields.push({ name: field.name, offset, size, type: field.type });
+    }
+    cache.set(classSymbol.id, fields);
+    return fields;
+  };
+  return classes.map((classSymbol) => {
+    const fields = fieldsFor(classSymbol);
+    return { name: classSymbol.name, classId: classSymbol.id, parentClassId: classSymbol.parentClass, fields, instanceSize: fields.reduce((total, field) => total + field.size, 0) };
   });
 }
 
@@ -428,9 +500,8 @@ function buildActivationRecords(scopes: ScopeInfo[], symbols: SymbolEntry[]): Ac
           kind: storageKind as "global" | "local" | "parameter" | "captured",
           frameId: `frame-${scope.id}`,
           offset: i * 8,
-          size: 8,
-          alignment: 8,
-          captureIndex: s.captured ? i : undefined
+          size: storageSize(s.type),
+          alignment: Math.min(8, Math.max(1, storageSize(s.type)))
         };
         s.storage = storage;
         return {
@@ -439,8 +510,8 @@ function buildActivationRecords(scopes: ScopeInfo[], symbols: SymbolEntry[]): Ac
           kind,
           type: s.type,
           offset: i * 8,
-          size: 8,
-          alignment: 8
+          size: storageSize(s.type),
+          alignment: Math.min(8, Math.max(1, storageSize(s.type)))
         };
       });
 
