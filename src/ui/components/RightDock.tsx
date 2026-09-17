@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Braces, Database, Download, FlaskConical, FolderTree, ListChecks, Network, Split } from "lucide-react";
+import { Braces, Database, Download, FlaskConical, FolderTree, ListChecks, Network, Search, Split } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -40,10 +40,13 @@ function TacInspector({ result }: { result: AnalyzeResult }) {
 
   return (
     <div className="flex flex-col gap-3 p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-head uppercase tracking-wide text-muted-foreground">Inspector TAC</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-head uppercase tracking-wide">Código de tres direcciones</p>
+          <p className="mt-1 text-xs text-muted-foreground">Inspecciona, filtra y exporta la representación intermedia.</p>
+        </div>
         <div className="flex gap-1">
-          <button className="rounded border px-2 py-1 text-[11px]" onClick={() => downloadText("compiscript.tac", result.tac.formattedCode)}>TAC</button>
+          <button className="rounded border bg-primary px-2 py-1 text-[11px] font-semibold shadow-xs" onClick={() => downloadText("compiscript.tac", result.tac.formattedCode)}>Descargar TAC</button>
           <button className="rounded border px-2 py-1 text-[11px]" onClick={() => downloadText("compiscript_tac.csv", tacToCsv(instructions), "text/csv;charset=utf-8")}>CSV</button>
           <button className="rounded border px-2 py-1 text-[11px]" onClick={() => downloadText("reporte_tac.txt", tacReportToText(result))}>Reporte</button>
         </div>
@@ -56,8 +59,11 @@ function TacInspector({ result }: { result: AnalyzeResult }) {
             ))}
           </div>
           <div className="flex gap-1.5">
-            <input aria-label="Filtrar TAC" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar operando..." className="min-w-0 flex-1 rounded border bg-background px-2 py-1 text-xs" />
-            <select aria-label="Filtrar opcode" value={opcode} onChange={(event) => setOpcode(event.target.value)} className="rounded border bg-background px-2 py-1 text-xs"><option value="all">Todos</option>{opcodes.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+            <label className="flex min-w-0 flex-1 items-center gap-1.5 rounded border bg-background px-2 py-1 focus-within:ring-1 focus-within:ring-ring">
+              <Search size={13} className="shrink-0 text-muted-foreground" />
+              <input aria-label="Filtrar TAC" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar operando o etiqueta..." className="min-w-0 flex-1 bg-transparent text-xs outline-none" />
+            </label>
+            <select aria-label="Filtrar opcode" value={opcode} onChange={(event) => setOpcode(event.target.value)} className="rounded border bg-background px-2 py-1 text-xs"><option value="all">Todos los opcodes</option>{opcodes.map((item) => <option key={item} value={item}>{item}</option>)}</select>
           </div>
           <pre className="max-h-72 overflow-auto rounded-md border bg-muted/30 p-3 font-mono text-xs leading-5">{filtered.map((item) => `${String(item.index).padStart(3, "0")}  ${item.op.padEnd(12, " ")}  ${item.result?.value ?? ""} ${item.arg1?.value ?? ""}${item.arg2 ? `, ${item.arg2.value}` : ""}`).join("\\n") || "Sin coincidencias."}</pre>
           <p className="text-xs text-muted-foreground">Mostrando {filtered.length} de {instructions.length} instrucciones · reutilización de temporales: {result.tac.metrics.temporariesReuseCount}</p>
@@ -71,29 +77,29 @@ export function RightDock({ result, inputText, activeTab, onTabChange, onSelectS
   return (
     <Tabs value={activeTab} onValueChange={(next) => onTabChange(next as DockTabId)} className="flex h-full flex-col gap-0">
       <TabsList variant="line" className="h-9 justify-start overflow-x-auto rounded-none border-b-2 bg-card px-1">
-        <TabsTrigger value="resultado" className="px-2">
-          <ListChecks size={14} />
+        <TabsTrigger value="resultado" className="gap-1.5 px-2 text-xs">
+          <ListChecks size={14} /> <span>Resultado</span>
         </TabsTrigger>
-        <TabsTrigger value="simbolos" className="px-2">
-          <Database size={14} />
+        <TabsTrigger value="simbolos" className="gap-1.5 px-2 text-xs">
+          <Database size={14} /> <span>Símbolos</span>
         </TabsTrigger>
-        <TabsTrigger value="ambitos" className="px-2">
-          <FolderTree size={14} />
+        <TabsTrigger value="ambitos" className="gap-1.5 px-2 text-xs">
+          <FolderTree size={14} /> <span>Ámbitos</span>
         </TabsTrigger>
-        <TabsTrigger value="arboles" className="px-2">
-          <Network size={14} />
+        <TabsTrigger value="arboles" className="gap-1.5 px-2 text-xs">
+          <Network size={14} /> <span>Árboles</span>
         </TabsTrigger>
-        <TabsTrigger value="tac" className="px-2">
-          <Split size={14} />
+        <TabsTrigger value="tac" className="gap-1.5 bg-primary/15 px-2 text-xs font-semibold">
+          <Split size={14} /> <span>TAC</span>
         </TabsTrigger>
-        <TabsTrigger value="documentacion" className="px-2">
-          <Braces size={14} />
+        <TabsTrigger value="documentacion" className="gap-1.5 px-2 text-xs">
+          <Braces size={14} /> <span>Docs</span>
         </TabsTrigger>
-        <TabsTrigger value="exportar" className="px-2">
-          <Download size={14} />
+        <TabsTrigger value="exportar" className="gap-1.5 px-2 text-xs">
+          <Download size={14} /> <span>Exportar</span>
         </TabsTrigger>
-        <TabsTrigger value="pruebas" className="px-2">
-          <FlaskConical size={14} />
+        <TabsTrigger value="pruebas" className="gap-1.5 px-2 text-xs">
+          <FlaskConical size={14} /> <span>Pruebas</span>
         </TabsTrigger>
       </TabsList>
 

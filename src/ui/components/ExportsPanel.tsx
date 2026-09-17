@@ -1,4 +1,4 @@
-import { BrainCircuit, Download, FileCode2, FileJson, FileText, Table as TableIcon } from "lucide-react";
+import { BrainCircuit, Download, FileCode2, FileJson, FileText, Split, Table as TableIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   downloadText,
@@ -6,6 +6,8 @@ import {
   resultToJson,
   semanticReportToText,
   symbolsToCsv,
+  tacToCsv,
+  tacReportToText,
   tokensToCsv
 } from "../../lib/downloads";
 import { grammarSource } from "../../lib/examples";
@@ -41,6 +43,25 @@ export function ExportsPanel({ result, inputText }: ExportsPanelProps) {
             label: "Árbol sintáctico .txt",
             icon: <FileText size={14} />,
             action: () => downloadText("arbol_sintactico_compiscript.txt", parseTreeToText(result))
+          }
+        ]
+      : []),
+    ...(result.mode === "tac" && result.tac.status === "completed"
+      ? [
+          {
+            label: "Código TAC .tac",
+            icon: <Split size={14} />,
+            action: () => downloadText("compiscript.tac", result.tac.formattedCode)
+          },
+          {
+            label: "TAC CSV",
+            icon: <TableIcon size={14} />,
+            action: () => downloadText("compiscript_tac.csv", tacToCsv(result.tac.instructions), "text/csv;charset=utf-8")
+          },
+          {
+            label: "Reporte TAC",
+            icon: <FileText size={14} />,
+            action: () => downloadText("reporte_tac.txt", `Métricas TAC\\n\\n${JSON.stringify(result.tac.metrics, null, 2)}\\n\\n${result.tac.formattedCode}`)
           }
         ]
       : []),
