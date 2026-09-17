@@ -68,7 +68,7 @@ function TacInspector({ result }: { result: AnalyzeResult }) {
           </div>
           <div className="overflow-hidden rounded-md border bg-[#10151a] shadow-inner">
             <div className="flex items-center justify-between border-b border-white/10 px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-              <span>Listado de instrucciones</span>
+              <span className="text-white">Listado de instrucciones</span>
               <span className="font-mono normal-case tracking-normal">TAC / IR</span>
             </div>
             <div className="max-h-80 overflow-auto py-1 font-mono text-[12px] leading-6">
