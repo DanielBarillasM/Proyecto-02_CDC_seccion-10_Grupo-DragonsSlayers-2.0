@@ -42,6 +42,12 @@ describe("TAC core", () => {
     expect(new Set(result.tac.instructions.map((instruction) => instruction.scopeId)).size).toBeGreaterThan(1);
   });
 
+  it("keeps branch targets aligned with basic blocks", () => {
+    const result = analyzeInput("if (true) { print(1); } else { print(2); }", "tac");
+    const labels = new Set(result.tac.instructions.filter((instruction) => instruction.op === "LABEL").map((instruction) => String(instruction.result?.value)));
+    result.tac.instructions.filter((instruction) => instruction.op === "IF_FALSE" || instruction.op === "GOTO").forEach((instruction) => expect(labels.has(String(instruction.result?.value ?? instruction.arg1?.value))).toBe(true));
+  });
+
   it("keeps TAC source locations and monotonic indices", () => {
     const result = analyzeInput("let value: integer = 7; print(value);", "tac");
     expect(result.tac.instructions.every((instruction, index) => instruction.index === index)).toBe(true);

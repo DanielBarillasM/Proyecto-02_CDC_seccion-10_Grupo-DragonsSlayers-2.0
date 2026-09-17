@@ -440,9 +440,14 @@ export function generateTac(program: ParseTree, semantic: SemanticAnalysisResult
     }
   };
 
-  emit("PROGRAM_BEGIN", {});
-  visit(program);
-  emit("PROGRAM_END", {});
+  try {
+    emit("PROGRAM_BEGIN", {});
+    visit(program);
+    emit("PROGRAM_END", {});
+  } catch (error) {
+    diagnostics.push({ code: "TAC_GENERATION_FAILED", message: error instanceof Error ? error.message : "Error inesperado durante la generación TAC.", severity: "error" });
+    return { ...emptyTacResult("failed", "La generación TAC terminó con un error interno."), diagnostics };
+  }
 
   const activationRecords = buildActivationRecords(semantic.scopes, semantic.symbols);
   const classLayouts = buildClassLayouts(semantic.symbols);

@@ -95,7 +95,11 @@ function TacVisualPanel({ result }: { result: AnalyzeResult }) {
   const instructions = result.tac.instructions;
   const labels = useMemo(() => new Map(instructions.filter((item) => item.op === "LABEL").map((item) => [String(item.result?.value), item.index])), [instructions]);
   const blocks = useMemo(() => {
-    const starts = [0, ...instructions.filter((item) => item.op === "LABEL").map((item) => item.index)];
+    const branchOps = new Set(["GOTO", "IF_TRUE", "IF_FALSE", "RETURN"]);
+    const starts = [0, ...instructions.flatMap((item, index) => {
+      const next = instructions[index + 1];
+      return item.op === "LABEL" || (branchOps.has(item.op) && next) ? [item.op === "LABEL" ? item.index : next.index] : [];
+    })];
     return [...new Set(starts)].sort((a, b) => a - b).map((start, index, all) => {
       const end = all[index + 1] ?? instructions.length;
       const block = instructions.slice(start, end);
@@ -105,7 +109,7 @@ function TacVisualPanel({ result }: { result: AnalyzeResult }) {
   const edges = useMemo(() => blocks.flatMap((block, index) => {
     const last = block.block[block.block.length - 1];
     const target = last?.result?.kind === "label" ? labels.get(String(last.result.value)) : undefined;
-    const targetIndex = target === undefined ? -1 : blocks.findIndex((candidate) => candidate.start === target);
+    const targetIndex = target === undefined ? -1 : blocks.findIndex((candidate) => candidate.start <= target && (blocks[blocks.indexOf(candidate) + 1]?.start ?? instructions.length) > target);
     const isConditional = last?.op === "IF_TRUE" || last?.op === "IF_FALSE";
     const destinations = isConditional
       ? [targetIndex, index < blocks.length - 1 ? index + 1 : -1]
