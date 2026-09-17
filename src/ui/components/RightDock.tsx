@@ -5,6 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { downloadText, tacReportToText, tacToCsv } from "../../lib/downloads";
 import type { AnalyzeResult } from "../../lib/types";
+import { formatTac } from "../../tac/types";
 import type { ScopeInfo } from "../../semantic/scopes";
 import { DocumentationPanel } from "./DocumentationPanel";
 import { EmptyPanel } from "./EmptyPanel";
@@ -65,7 +66,24 @@ function TacInspector({ result }: { result: AnalyzeResult }) {
             </label>
             <select aria-label="Filtrar opcode" value={opcode} onChange={(event) => setOpcode(event.target.value)} className="rounded border bg-background px-2 py-1 text-xs"><option value="all">Todos los opcodes</option>{opcodes.map((item) => <option key={item} value={item}>{item}</option>)}</select>
           </div>
-          <pre className="max-h-72 overflow-auto rounded-md border bg-muted/30 p-3 font-mono text-xs leading-5">{filtered.map((item) => `${String(item.index).padStart(3, "0")}  ${item.op.padEnd(12, " ")}  ${item.result?.value ?? ""} ${item.arg1?.value ?? ""}${item.arg2 ? `, ${item.arg2.value}` : ""}`).join("\\n") || "Sin coincidencias."}</pre>
+          <div className="overflow-hidden rounded-md border bg-[#10151a] shadow-inner">
+            <div className="flex items-center justify-between border-b border-white/10 px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              <span>Listado de instrucciones</span>
+              <span className="font-mono normal-case tracking-normal">TAC / IR</span>
+            </div>
+            <div className="max-h-80 overflow-auto py-1 font-mono text-[12px] leading-6">
+              {filtered.length ? filtered.map((item) => {
+                const line = formatTac([item]);
+                return (
+                  <div key={item.index} className="group grid min-w-[34rem] grid-cols-[3.5rem_5.75rem_minmax(0,1fr)] items-baseline px-3 hover:bg-primary/10">
+                    <span className="select-none text-right text-[10px] text-muted-foreground/60">{String(item.index).padStart(3, "0")}</span>
+                    <span className="pl-4 text-[10px] font-semibold tracking-wide text-primary/80">{item.op}</span>
+                    <code className="whitespace-pre pl-3 text-foreground/90">{line}</code>
+                  </div>
+                );
+              }) : <p className="px-4 py-8 text-center text-xs text-muted-foreground">Sin coincidencias.</p>}
+            </div>
+          </div>
           <p className="text-xs text-muted-foreground">Mostrando {filtered.length} de {instructions.length} instrucciones · reutilización de temporales: {result.tac.metrics.temporariesReuseCount}</p>
         </>
       )}
