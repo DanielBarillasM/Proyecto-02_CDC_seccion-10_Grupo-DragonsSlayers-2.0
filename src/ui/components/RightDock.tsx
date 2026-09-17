@@ -105,20 +105,32 @@ function TacVisualPanel({ result }: { result: AnalyzeResult }) {
   const edges = useMemo(() => blocks.flatMap((block, index) => {
     const last = block.block[block.block.length - 1];
     const target = last?.result?.kind === "label" ? labels.get(String(last.result.value)) : undefined;
-    const outgoing = target === undefined ? (index < blocks.length - 1 ? [index + 1] : []) : [blocks.findIndex((candidate) => candidate.start === target)];
-    return outgoing.filter((value) => value >= 0).map((to) => ({ from: index, to, conditional: last?.op === "IF_TRUE" || last?.op === "IF_FALSE" }));
+    const targetIndex = target === undefined ? -1 : blocks.findIndex((candidate) => candidate.start === target);
+    const isConditional = last?.op === "IF_TRUE" || last?.op === "IF_FALSE";
+    const destinations = isConditional
+      ? [targetIndex, index < blocks.length - 1 ? index + 1 : -1]
+      : last?.op === "GOTO" ? [targetIndex] : [index < blocks.length - 1 ? index + 1 : -1];
+    return [...new Set(destinations)].filter((value) => value >= 0).map((to) => ({ from: index, to, conditional: isConditional }));
   }), [blocks, labels]);
-  const width = Math.max(720, blocks.length * 220);
+  const outgoingByBlock = useMemo(() => new Map(blocks.map((block, index) => [index, edges.filter((edge) => edge.from === index)])), [blocks, edges]);
   return (
     <div className="flex flex-col gap-3 p-3">
-      <div><p className="text-sm font-head uppercase tracking-wide">Mapa visual del TAC</p><p className="mt-1 text-xs text-muted-foreground">Bloques básicos, saltos y rutas de control de la representación intermedia.</p></div>
+      <div className="flex items-start justify-between gap-3">
+        <div><p className="text-sm font-head uppercase tracking-wide">Flujo visual del TAC</p><p className="mt-1 max-w-xl text-xs text-muted-foreground">Cada tarjeta es un bloque básico. Las conexiones muestran la siguiente instrucción o el destino de un salto.</p></div>
+        <div className="hidden shrink-0 items-center gap-2 text-[10px] text-muted-foreground sm:flex"><span className="h-2 w-2 rounded-full bg-primary" /> salto <span className="h-2 w-2 rounded-full bg-amber-400" /> condición</div>
+      </div>
       {result.tac.status === "skipped" ? <p className="text-sm text-muted-foreground">{result.tac.skipReason}</p> : (
-        <div className="overflow-auto rounded-lg border bg-[#0d1217] p-3">
-          <svg width={width} height={Math.max(260, blocks.length * 150)} role="img" aria-label="Grafo de flujo del código de tres direcciones" className="font-mono">
-            <defs><marker id="tac-arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="hsl(var(--primary))" /></marker></defs>
-            {edges.map((edge, index) => { const x1 = edge.from * 220 + 170; const y1 = 80; const x2 = edge.to * 220 + 20; const y2 = 80; return <path key={`${edge.from}-${edge.to}-${index}`} d={`M ${x1} ${y1} C ${x1 + 35} ${y1 - 45}, ${x2 - 35} ${y2 - 45}, ${x2} ${y2}`} fill="none" stroke="hsl(var(--primary))" strokeOpacity="0.65" strokeWidth="2" markerEnd="url(#tac-arrow)" />; })}
-            {blocks.map((block, index) => { const x = index * 220; const preview = block.block.slice(0, 4).map((item) => formatTac([item])).join("\\n"); return <g key={block.id} transform={`translate(${x}, 30)`}><rect width="175" height="100" rx="8" fill="#18212a" stroke="hsl(var(--primary))" strokeOpacity="0.7" /><text x="12" y="20" fill="hsl(var(--primary))" fontSize="11" fontWeight="700">{block.id} · {String(block.title).slice(0, 18)}</text>{preview.split("\\n").map((line, lineIndex) => <text key={lineIndex} x="12" y={40 + lineIndex * 16} fill="white" fontSize="10">{line.slice(0, 25)}</text>)}<text x="12" y="91" fill="#94a3b8" fontSize="9">{block.block.length} instrucciones</text></g>; })}
-          </svg>
+        <div className="min-w-0 overflow-x-auto rounded-lg border bg-[#0d1217] p-3">
+          <div className="grid min-w-0 grid-cols-1 gap-3" role="list" aria-label="Bloques básicos del código TAC">
+            {blocks.map((block, index) => {
+              const outgoing = outgoingByBlock.get(index) ?? [];
+              return <article key={block.id} role="listitem" className="relative min-w-0 overflow-hidden rounded-lg border border-white/10 bg-[#18212a] shadow-sm transition-colors hover:border-primary/70">
+                <header className="flex items-center justify-between border-b border-white/10 bg-white/[0.03] px-3 py-2"><div><span className="font-mono text-xs font-bold text-primary">{block.id}</span><span className="ml-2 text-[10px] text-white/60">{String(block.title)}</span></div><span className="font-mono text-[10px] text-white/45">{block.start.toString().padStart(3, "0")}</span></header>
+                <div className="space-y-1 p-3">{block.block.slice(0, 6).map((item) => <div key={item.index} className="grid grid-cols-[2rem_minmax(0,1fr)] gap-2 font-mono text-[11px] leading-5"><span className="text-right text-white/35">{item.index}</span><code className="truncate whitespace-pre text-white/90" title={formatTac([item])}>{formatTac([item])}</code></div>)}{block.block.length > 6 && <p className="pl-10 text-[10px] text-white/45">+ {block.block.length - 6} instrucciones</p>}</div>
+                <footer className="flex flex-wrap gap-1 border-t border-white/10 px-3 py-2">{outgoing.length ? outgoing.map((edge) => <span key={`${edge.from}-${edge.to}`} className={`rounded-full px-2 py-0.5 text-[10px] ${edge.conditional ? "bg-amber-400/15 text-amber-300" : "bg-primary/15 text-primary"}`}>{edge.conditional ? "condición →" : "siguiente →"} {blocks[edge.to]?.id ?? "fin"}</span>) : <span className="text-[10px] text-white/45">fin del flujo</span>}</footer>
+              </article>;
+            })}
+          </div>
         </div>
       )}
     </div>
