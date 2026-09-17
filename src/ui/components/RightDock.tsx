@@ -78,7 +78,7 @@ function TacInspector({ result }: { result: AnalyzeResult }) {
                   <div key={item.index} className="group grid min-w-[34rem] grid-cols-[3.5rem_5.75rem_minmax(0,1fr)] items-baseline px-3 hover:bg-primary/10">
                     <span className="select-none text-right text-[10px] text-muted-foreground/60">{String(item.index).padStart(3, "0")}</span>
                     <span className="pl-4 text-[10px] font-semibold tracking-wide text-primary/80">{item.op}</span>
-                    <code className="whitespace-pre pl-3 text-foreground/90">{line}</code>
+                    <code className="whitespace-pre pl-3 text-white/90">{line}</code>
                   </div>
                 );
               }) : <p className="px-4 py-8 text-center text-xs text-muted-foreground">Sin coincidencias.</p>}
