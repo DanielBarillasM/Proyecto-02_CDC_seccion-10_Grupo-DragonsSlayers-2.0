@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Presentación académica del analizador semántico de Compiscript.">
+  <title>Compiscript Semantic IDE | Presentación del Proyecto 1</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #eef6ff;
+      --muted: #8fa7c6;
+      --subtle: #5f7899;
+      --base: #030817;
+      --panel: rgba(9, 21, 46, .9);
+      --line: rgba(133, 180, 235, .2);
+      --cyan: #38d9ee;
+      --blue: #55a2ff;
+      --violet: #ad8cff;
+      --green: #49dd91;
+      --amber: #ffc85a;
+      --red: #ff7f8a;
+      --sans: Inter, "Segoe UI", system-ui, sans-serif;
+      --mono: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--base); color: var(--ink); font-family: var(--sans); }
+    body { overflow: hidden; }
+    button { font: inherit; }
+    .deck {
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 12% 12%, rgba(56,217,238,.11), transparent 32%),
+        radial-gradient(circle at 88% 14%, rgba(173,140,255,.12), transparent 30%),
+        linear-gradient(160deg, #061027, #020611 68%);
+    }
+    .deck::before {
+      content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .2;
+      background-image: linear-gradient(rgba(120,170,230,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(120,170,230,.08) 1px, transparent 1px);
+      background-size: 42px 42px;
+      mask-image: linear-gradient(to bottom, black, transparent 85%);
+    }
+    .topbar {
+      position: fixed; inset: 0 0 auto; z-index: 20; height: 58px; padding: 0 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(3,8,23,.78); border-bottom: 1px solid var(--line); backdrop-filter: blur(18px);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 850; letter-spacing: -.02em; }
+    .brand-mark { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 9px; color: var(--cyan); border: 1px solid rgba(56,217,238,.4); background: rgba(56,217,238,.08); font: 800 11px var(--mono); }
+    .top-meta { display: flex; gap: 14px; align-items: center; color: var(--muted); font-size: 12px; }
+    .top-meta strong { color: var(--cyan); font-family: var(--mono); }
+    .progress { position: fixed; z-index: 30; inset: 57px auto auto 0; height: 2px; width: 0; background: linear-gradient(90deg, var(--cyan), var(--violet)); transition: width .25s ease; }
+    .slides { position: relative; min-height: 100vh; }
+    .slide {
+      position: absolute; inset: 58px 0 64px; padding: clamp(28px, 4vw, 64px) clamp(28px, 6vw, 92px);
+      display: grid; align-content: center; opacity: 0; transform: translateX(28px) scale(.992); pointer-events: none;
+      transition: opacity .28s ease, transform .28s ease;
+    }
+    .slide.active { opacity: 1; transform: none; pointer-events: auto; }
+    .slide-scroll { max-height: calc(100vh - 150px); overflow: auto; padding-right: 8px; scrollbar-color: var(--subtle) transparent; }
+    .kicker { color: var(--cyan); font: 800 12px/1 var(--mono); letter-spacing: .18em; text-transform: uppercase; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin-bottom: 18px; font-size: clamp(44px, 6vw, 88px); line-height: .98; letter-spacing: -.055em; }
+    h2 { margin-bottom: 12px; font-size: clamp(34px, 4.2vw, 62px); line-height: 1.02; letter-spacing: -.045em; }
+    h3 { margin-bottom: 8px; font-size: 18px; }
+    .accent { color: var(--cyan); }
+    .lead { max-width: 980px; color: var(--muted); font-size: clamp(17px, 2vw, 24px); line-height: 1.5; }
+    .small { color: var(--muted); font-size: 13px; line-height: 1.55; }
+    .hero-slide { padding: 0; overflow: hidden; }
+    .hero-slide::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(2,6,17,.98) 0%, rgba(2,6,17,.88) 34%, rgba(2,6,17,.18) 72%, rgba(2,6,17,.35)); }
+    .hero-slide img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .hero-copy { position: relative; z-index: 2; width: min(820px, 70%); padding-left: clamp(34px, 7vw, 110px); }
+    .hero-copy .lead { max-width: 700px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+    .chip { padding: 7px 11px; border: 1px solid var(--line); border-radius: 999px; background: rgba(7,17,38,.7); color: #b9cae1; font-size: 12px; font-weight: 750; }
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(20px, 4vw, 56px); align-items: center; }
+    .split-60 { grid-template-columns: 1.2fr .8fr; }
+    .grid-2, .grid-3, .grid-4 { display: grid; gap: 14px; margin-top: 24px; }
+    .grid-2 { grid-template-columns: repeat(2, 1fr); }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .grid-4 { grid-template-columns: repeat(4, 1fr); }
+    .card { padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: linear-gradient(150deg, rgba(16,34,70,.82), rgba(6,16,35,.82)); box-shadow: 0 18px 50px rgba(0,0,0,.18); }
+    .card p { margin-bottom: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+    .card-number { display: inline-block; margin-bottom: 16px; color: var(--cyan); font: 850 13px var(--mono); }
+    .stat { display: grid; gap: 6px; }
+    .stat strong { color: var(--cyan); font: 850 clamp(30px, 4vw, 54px)/1 var(--mono); }
+    .stat span { font-weight: 800; }
+    .stat small { color: var(--muted); }
+    .pipeline { display: grid; grid-template-columns: repeat(7, auto); align-items: center; justify-content: center; gap: 12px; margin-top: 38px; }
+    .pipeline-step { min-width: 140px; padding: 22px 16px; text-align: center; border: 1px solid var(--line); border-radius: 16px; background: rgba(9,21,46,.82); }
+    .pipeline-step strong { display: block; margin-bottom: 5px; color: var(--cyan); }
+    .pipeline-step small { color: var(--muted); }
+    .arrow { color: var(--subtle); font: 900 22px var(--mono); }
+    .code { margin: 20px 0 0; padding: 18px; overflow: auto; border-radius: 15px; color: #cfe3ff; background: #020712; border: 1px solid rgba(90,144,210,.24); font: 13px/1.65 var(--mono); white-space: pre; }
+    .code .kw { color: var(--violet); } .code .type { color: var(--cyan); } .code .lit { color: var(--green); } .code .bad { color: var(--red); text-decoration: underline wavy; }
+    .architecture { display: grid; grid-template-columns: 1fr 72px 1fr 72px 1fr; align-items: center; gap: 10px; margin-top: 28px; }
+    .module { min-height: 172px; display: grid; align-content: center; padding: 22px; text-align: center; border-radius: 18px; border: 1px solid var(--line); background: rgba(9,22,48,.84); }
+    .module span { margin-bottom: 8px; color: var(--cyan); font: 850 12px var(--mono); }
+    .module p { margin: 0; color: var(--muted); font-size: 13px; }
+    .visual { width: 100%; border-radius: 22px; border: 1px solid rgba(94,190,238,.28); box-shadow: 0 30px 90px rgba(0,0,0,.32); }
+    .type-table, .rule-table { width: 100%; border-collapse: collapse; margin-top: 24px; font-size: 13px; }
+    .type-table th, .type-table td, .rule-table th, .rule-table td { padding: 11px 12px; text-align: left; border-bottom: 1px solid var(--line); }
+    .type-table th, .rule-table th { color: var(--cyan); font-size: 11px; letter-spacing: .09em; text-transform: uppercase; }
+    .type-table td, .rule-table td { color: var(--muted); }
+    .type-table code, .rule-table code { color: var(--violet); font-family: var(--mono); }
+    .scope-stack { position: relative; min-height: 390px; }
+    .scope-box { position: absolute; display: grid; place-items: start; padding: 18px; border: 2px solid; border-radius: 22px; background: rgba(5,14,32,.72); }
+    .scope-box strong { font-family: var(--mono); }
+    .scope-global { inset: 0; border-color: rgba(85,162,255,.55); }
+    .scope-class { inset: 65px 60px 45px; border-color: rgba(173,140,255,.6); }
+    .scope-function { inset: 132px 120px 90px; border-color: rgba(56,217,238,.62); }
+    .scope-block { inset: 205px 180px 125px; border-color: rgba(73,221,145,.65); }
+    .diagnostic-list { display: grid; gap: 9px; margin-top: 24px; }
+    .diag { display: grid; grid-template-columns: 78px 82px 1fr; gap: 12px; align-items: center; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: rgba(7,17,38,.78); font-size: 13px; }
+    .diag code { color: var(--violet); font-weight: 850; }
+    .diag span { color: var(--subtle); font-family: var(--mono); }
+    .diag strong { font-size: 13px; }
+    .mock-app { padding: 12px; border: 1px solid rgba(106,175,230,.26); border-radius: 22px; background: #061027; box-shadow: 0 28px 80px rgba(0,0,0,.35); }
+    .mock-top { height: 36px; display: flex; align-items: center; gap: 6px; padding: 0 10px; border-bottom: 1px solid var(--line); }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--subtle); }
+    .mock-body { display: grid; grid-template-columns: 150px 1fr; gap: 10px; padding: 10px; min-height: 360px; }
+    .mock-side, .mock-main, .mock-result { border: 1px solid var(--line); border-radius: 12px; background: rgba(3,9,22,.75); }
+    .mock-side { padding: 10px; }
+    .mock-side i { display: block; height: 32px; margin-bottom: 7px; border-radius: 8px; background: rgba(56,217,238,.06); border: 1px solid rgba(56,217,238,.12); }
+    .mock-main { display: grid; grid-template-rows: 1.3fr .7fr; gap: 10px; padding: 10px; }
+    .mock-editor { border-radius: 9px; background: repeating-linear-gradient(#09182f 0 2px, transparent 2px 20px), #020712; }
+    .mock-result { display: grid; grid-template-columns: 120px 1fr; gap: 8px; padding: 8px; }
+    .mock-result::before, .mock-result::after { content: ""; border-radius: 7px; background: rgba(173,140,255,.08); }
+    .checklist { display: grid; gap: 10px; margin-top: 24px; }
+    .check { display: grid; grid-template-columns: 24px 1fr auto; gap: 10px; align-items: center; padding: 13px; border-radius: 12px; border: 1px solid var(--line); background: rgba(9,21,46,.72); }
+    .check b { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 6px; color: #04170e; background: var(--green); font-size: 12px; }
+    .check span { font-size: 13px; }
+    .check small { color: var(--green); font: 800 11px var(--mono); }
+    .demo-flow { counter-reset: demo; display: grid; gap: 10px; margin-top: 24px; }
+    .demo-flow li { counter-increment: demo; display: grid; grid-template-columns: 42px 1fr; gap: 12px; align-items: center; padding: 13px; border-radius: 13px; background: rgba(9,21,46,.72); border: 1px solid var(--line); list-style: none; }
+    .demo-flow li::before { content: counter(demo, decimal-leading-zero); color: var(--cyan); font: 850 13px var(--mono); }
+    .demo-flow strong { display: block; font-size: 14px; }
+    .demo-flow span { color: var(--muted); font-size: 12px; }
+    .footer-controls {
+      position: fixed; inset: auto 0 0; z-index: 20; height: 64px; padding: 0 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(3,8,23,.86); border-top: 1px solid var(--line); backdrop-filter: blur(18px);
+    }
+    .nav-actions { display: flex; gap: 8px; }
+    .nav-button { padding: 8px 13px; color: var(--ink); border: 1px solid var(--line); border-radius: 10px; background: rgba(14,31,64,.7); cursor: pointer; }
+    .nav-button:hover { border-color: rgba(56,217,238,.5); color: var(--cyan); }
+    .nav-button:disabled { opacity: .35; cursor: not-allowed; }
+    .shortcuts { color: var(--subtle); font: 11px var(--mono); }
+    .speaker-note { display: none; position: fixed; z-index: 40; right: 20px; bottom: 78px; width: min(440px, calc(100% - 40px)); padding: 14px; border: 1px solid rgba(255,200,90,.35); border-radius: 12px; color: #e8d29d; background: rgba(30,22,5,.96); box-shadow: 0 20px 70px rgba(0,0,0,.45); font-size: 12px; line-height: 1.55; }
+    .speaker-note.visible { display: block; }
+    .overview-mode body { overflow: auto; }
+    body.overview { overflow: auto; }
+    body.overview .topbar, body.overview .footer-controls, body.overview .progress { display: none; }
+    body.overview .slides { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding: 16px; }
+    body.overview .slide { position: relative; inset: auto; min-height: 520px; padding: 32px; opacity: 1; transform: none; pointer-events: auto; overflow: hidden; border: 1px solid var(--line); border-radius: 18px; }
+    body.overview .hero-slide { padding: 0; }
+    body.overview .hero-copy { padding-left: 38px; }
+    body.overview .speaker-note { display: none; }
+    @media (max-width: 900px) {
+      .split, .split-60, .grid-3, .grid-4 { grid-template-columns: 1fr 1fr; }
+      .architecture { grid-template-columns: 1fr; }
+      .architecture .arrow { transform: rotate(90deg); text-align: center; }
+      .pipeline { grid-template-columns: 1fr; }
+      .pipeline .arrow { transform: rotate(90deg); text-align: center; }
+      .slide { align-content: start; }
+      .slide-scroll { padding-top: 24px; }
+      body.overview .slides { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 620px) {
+      .top-meta span, .shortcuts { display: none; }
+      .slide { padding: 24px 18px; }
+      .split, .split-60, .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+      .hero-copy { width: 95%; padding: 30px; }
+      .hero-slide::after { background: rgba(2,6,17,.8); }
+      .mock-body { grid-template-columns: 1fr; }
+      .diag { grid-template-columns: 64px 1fr; }
+      .diag strong { grid-column: 1 / -1; }
+    }
+    @media print {
+      body { overflow: visible; background: white; }
+      .topbar, .footer-controls, .progress, .speaker-note { display: none !important; }
+      .slide { position: relative; inset: auto; width: 100%; min-height: 100vh; page-break-after: always; opacity: 1; transform: none; pointer-events: auto; }
+    }
+
+    /* Identidad visual vigente del IDE: neobrutalismo crema, amarillo y negro. */
+    :root {
+      color-scheme: light;
+      --ink: #000;
+      --muted: #6b6355;
+      --subtle: #847b6b;
+      --base: #fff7e8;
+      --panel: #fff;
+      --line: #000;
+      --cyan: #000;
+      --blue: #ffdc58;
+      --violet: #7c2d12;
+      --green: #15803d;
+      --amber: #ffdc58;
+      --red: #e63946;
+      --sans: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+      --mono: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+    }
+    html, body { background: var(--base); color: var(--ink); }
+    .deck { background: var(--base); }
+    .deck::before {
+      opacity: .18;
+      background-image: linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px);
+      background-size: 44px 44px;
+      mask-image: linear-gradient(to bottom, black, transparent 90%);
+    }
+    .topbar, .footer-controls {
+      color: #000;
+      background: #fff;
+      border-color: #000;
+      border-width: 0 0 3px;
+      backdrop-filter: none;
+    }
+    .footer-controls { border-width: 3px 0 0; }
+    .brand { font-weight: 950; text-transform: uppercase; }
+    .brand-mark {
+      color: #000;
+      background: #ffdc58;
+      border: 2px solid #000;
+      border-radius: 0;
+      box-shadow: 3px 3px 0 #000;
+    }
+    .top-meta strong { color: #000; }
+    .progress { top: 58px; height: 5px; background: #ffdc58; border-bottom: 2px solid #000; }
+    .kicker, .accent { color: #000; }
+    .accent { display: inline; background: #ffdc58; box-shadow: 4px 4px 0 #000; padding: 0 .12em; }
+    .hero-slide::after { background: linear-gradient(90deg, rgba(255,247,232,.99) 0%, rgba(255,247,232,.96) 40%, rgba(255,247,232,.18) 72%); }
+    .hero-slide img { filter: saturate(.96) contrast(1.02); }
+    .chip, .card, .pipeline-step, .module, .diag, .check, .demo-flow li,
+    .mock-app, .mock-side, .mock-main, .mock-result, .nav-button, body.overview .slide {
+      color: #000;
+      background: #fff;
+      border: 2px solid #000;
+      border-radius: 0;
+      box-shadow: 5px 5px 0 #000;
+    }
+    .chip { background: #ffe7a3; color: #000; }
+    .card-number, .pipeline-step strong, .module span, .stat strong, .demo-flow li::before {
+      color: #000;
+      background: #ffdc58;
+      padding: .18em .35em;
+    }
+    .code { color: #fff7e8; background: #1a1815; border: 3px solid #000; border-radius: 0; box-shadow: 6px 6px 0 #ffdc58; }
+    .code .kw { color: #ffdc58; }
+    .code .type { color: #fff; }
+    .code .lit { color: #86efac; }
+    .visual { border: 3px solid #000; border-radius: 0; box-shadow: 9px 9px 0 #000; }
+    .type-table th, .type-table td, .rule-table th, .rule-table td { border-bottom: 2px solid #000; }
+    .type-table th, .rule-table th { color: #000; background: #ffdc58; }
+    .type-table code, .rule-table code { color: #7c2d12; }
+    .scope-box { color: #000; background: #fff; border: 3px solid #000; border-radius: 0; box-shadow: 5px 5px 0 #000; }
+    .scope-class { background: #fff3c4; }
+    .scope-function { background: #ffe7a3; }
+    .scope-block { background: #ffdc58; }
+    .mock-app { background: #fff7e8; }
+    .mock-side, .mock-main, .mock-result { box-shadow: 3px 3px 0 #000; }
+    .mock-side i { border: 2px solid #000; border-radius: 0; background: #ffe7a3; }
+    .mock-editor { border: 2px solid #000; border-radius: 0; background: repeating-linear-gradient(#2e2a24 0 2px, transparent 2px 20px), #1a1815; }
+    .mock-result::before, .mock-result::after { border: 2px solid #000; border-radius: 0; background: #ffdc58; }
+    .check b { color: #000; background: #ffdc58; border: 2px solid #000; border-radius: 0; }
+    .check small { color: #15803d; }
+    .nav-button { background: #ffdc58; cursor: pointer; }
+    .nav-button:hover { color: #000; background: #ffd12e; transform: translate(-1px, -1px); box-shadow: 6px 6px 0 #000; }
+    .speaker-note { color: #000; background: #ffdc58; border: 3px solid #000; border-radius: 0; box-shadow: 7px 7px 0 #000; }
+    @media (max-width: 620px) {
+      .hero-slide::after { background: rgba(255,247,232,.9); }
+    }
+  </style>
+</head>
+<body>
+  <main class="deck">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">CS</span>Compiscript Semantic IDE</div>
+      <div class="top-meta"><span>Proyecto 1</span><strong id="counter">01 / 17</strong></div>
+    </header>
+    <div class="progress" id="progress"></div>
+
+    <div class="slides" id="slides">
+      <section class="slide hero-slide active" data-title="Portada">
+        <img src="assets/compiler-pipeline-neobrutalist.png" alt="Referencia visual neobrutalista del flujo de código hacia tokens, árbol y semántica.">
+        <div class="hero-copy">
+          <span class="kicker">Construcción de Compiladores</span>
+          <h1>Compiscript<br><span class="accent">Semantic IDE</span></h1>
+          <p class="lead">Análisis léxico, sintáctico y semántico con ANTLR 4, TypeScript, tabla de símbolos y ámbitos léxicos.</p>
+          <div class="chips"><span class="chip">ANTLR 4</span><span class="chip">React + Vite</span><span class="chip">TypeScript</span><span class="chip">Electron</span><span class="chip">115 pruebas</span></div>
+        </div>
+        <aside class="speaker-note">Presente el objetivo general: transformar un archivo .cps en información semántica explicable y verificable.</aside>
+      </section>
+
+      <section class="slide" data-title="Problema y objetivo">
+        <div class="slide-scroll">
+          <span class="kicker">01 · Contexto</span>
+          <h2>La sintaxis correcta no garantiza <span class="accent">significado correcto</span></h2>
+          <p class="lead">Un parser puede aceptar una estructura que todavía use nombres inexistentes, tipos incompatibles o instrucciones fuera de contexto.</p>
+          <div class="grid-3">
+            <article class="card"><span class="card-number">Problema</span><h3>Errores más allá de la gramática</h3><p>Asignar un string a un integer, llamar una función con argumentos incorrectos o usar return fuera de una función.</p></article>
+            <article class="card"><span class="card-number">Objetivo</span><h3>Aplicar reglas semánticas</h3><p>Recorrer el CST válido, inferir tipos, resolver símbolos y producir diagnósticos precisos.</p></article>
+            <article class="card"><span class="card-number">Producto</span><h3>Un IDE explicable</h3><p>Editor, fases visibles, diagnósticos, tabla de símbolos, ámbitos y árboles navegables.</p></article>
+          </div>
+        </div>
+        <aside class="speaker-note">Diferencie error sintáctico de error semántico con un ejemplo breve.</aside>
+      </section>
+
+      <section class="slide" data-title="Lenguaje">
+        <div class="slide-scroll split split-60">
+          <div>
+            <span class="kicker">02 · Lenguaje</span>
+            <h2>Compiscript: un subconjunto académico de TypeScript</h2>
+            <p class="lead">Incluye variables, constantes, funciones, closures, clases, herencia, arreglos y control de flujo.</p>
+            <div class="chips"><span class="chip">integer</span><span class="chip">float</span><span class="chip">string</span><span class="chip">boolean</span><span class="chip">null</span><span class="chip">T[]</span></div>
+          </div>
+          <pre class="code"><span class="kw">class</span> Contador {
+  <span class="kw">let</span> valor: <span class="type">integer</span>;
+
+  <span class="kw">function</span> constructor(inicio: <span class="type">integer</span>) {
+    this.valor = inicio;
+  }
+
+  <span class="kw">function</span> siguiente(): <span class="type">integer</span> {
+    this.valor = this.valor + <span class="lit">1</span>;
+    <span class="kw">return</span> this.valor;
+  }
+}</pre>
+        </div>
+      </section>
+
+      <section class="slide" data-title="Pipeline">
+        <div class="slide-scroll">
+          <span class="kicker">03 · Pipeline</span>
+          <h2>Tres fases, una sola fuente de verdad</h2>
+          <p class="lead">El análisis semántico únicamente se ejecuta si las fases anteriores entregan un CST válido.</p>
+          <div class="pipeline">
+            <div class="pipeline-step"><strong>Fuente .cps</strong><small>caracteres</small></div><span class="arrow">→</span>
+            <div class="pipeline-step"><strong>Lexer</strong><small>tokens + errores</small></div><span class="arrow">→</span>
+            <div class="pipeline-step"><strong>Parser</strong><small>CST de ANTLR</small></div><span class="arrow">→</span>
+            <div class="pipeline-step"><strong>Visitor</strong><small>tipos + símbolos</small></div>
+          </div>
+          <div class="grid-3">
+            <article class="card"><h3>Recuperación controlada</h3><p>ANTLR continúa después de ciertos errores para informar más de un problema por archivo.</p></article>
+            <article class="card"><h3>Sin cascadas falsas</h3><p>Si lexer o parser fallan, la semántica queda marcada como omitida.</p></article>
+            <article class="card"><h3>Resultado común</h3><p>UI, CLI y pruebas consumen el mismo objeto AnalyzeResult.</p></article>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-title="ANTLR y gramática">
+        <div class="slide-scroll split">
+          <div>
+            <span class="kicker">04 · ANTLR</span>
+            <h2>La gramática define la estructura; el visitor agrega significado</h2>
+            <p class="lead">ANTLR genera lexer, parser, listener y visitor TypeScript desde una gramática combinada.</p>
+            <div class="checklist">
+              <div class="check"><b>1</b><span>Precedencia explícita de operadores</span><small>GRAMÁTICA</small></div>
+              <div class="check"><b>2</b><span>Bloques obligatorios en estructuras de control</span><small>ALINEADO</small></div>
+              <div class="check"><b>3</b><span>Extensión documentada para float</span><small>REQUISITO</small></div>
+            </div>
+          </div>
+          <pre class="code">expression
+  : assignmentExpression
+  ;
+
+logicalOrExpression
+  : logicalAndExpression
+    (OR logicalAndExpression)*
+  ;
+
+ifStatement
+  : IF LPAREN expression RPAREN block
+    (ELSE block)?
+  ;</pre>
+        </div>
+      </section>
+
+      <section class="slide" data-title="Arquitectura semántica">
+        <div class="slide-scroll">
+          <span class="kicker">05 · Arquitectura</span>
+          <h2>Responsabilidades pequeñas y conectadas</h2>
+          <div class="architecture">
+            <article class="module"><span>DECLARACIONES</span><h3>Prepasada</h3><p>Identidades de clase, firmas, campos, métodos e herencia.</p></article><span class="arrow">→</span>
+            <article class="module"><span>VISITOR</span><h3>Análisis principal</h3><p>Recorre statements y expresiones, resuelve tipos y produce diagnósticos.</p></article><span class="arrow">→</span>
+            <article class="module"><span>RESULTADO</span><h3>Modelo serializable</h3><p>Símbolos, ámbitos, árboles, métricas y errores para UI, CLI y tests.</p></article>
+          </div>
+          <div class="chips"><span class="chip">typeSystem.ts</span><span class="chip">scopes.ts</span><span class="chip">flowAnalysis.ts</span><span class="chip">diagnostics.ts</span><span class="chip">ast.ts</span></div>
+        </div>
+      </section>
+
+      <section class="slide" data-title="Sistema de tipos">
+        <div class="slide-scroll">
+          <span class="kicker">06 · Tipos</span>
+          <h2>Tipos estructurados, no cadenas dispersas</h2>
+          <p class="lead">La asignabilidad, comparabilidad y combinación numérica se centralizan para evitar reglas contradictorias.</p>
+          <table class="type-table">
+            <thead><tr><th>Regla</th><th>Aceptado</th><th>Rechazado</th><th>Diagnóstico</th></tr></thead>
+            <tbody>
+              <tr><td>Aritmética</td><td><code>integer + float</code></td><td><code>boolean - integer</code></td><td>SEM004</td></tr>
+              <tr><td>Lógica</td><td><code>boolean && boolean</code></td><td><code>integer || boolean</code></td><td>SEM004</td></tr>
+              <tr><td>Asignación</td><td><code>float = integer</code></td><td><code>integer = string</code></td><td>SEM003</td></tr>
+              <tr><td>Arreglos</td><td><code>[1, 2, 3]</code></td><td><code>[1, "dos"]</code></td><td>SEM017</td></tr>
+              <tr><td>Índices</td><td><code>lista[0]</code></td><td><code>lista["cero"]</code></td><td>SEM015</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="slide" data-title="Ámbitos y símbolos">
+        <div class="slide-scroll split">
+          <div>
+            <span class="kicker">07 · Tabla de símbolos</span>
+            <h2>Insertar, recuperar, actualizar y resolver ámbitos</h2>
+            <p class="lead">Cada declaración conserva tipo, mutabilidad, inicialización, ubicación, referencias y captura por closures.</p>
+            <div class="grid-2">
+              <article class="card"><h3>declare</h3><p>Inserta localmente y detecta colisiones en el ámbito exacto.</p></article>
+              <article class="card"><h3>resolve</h3><p>Busca desde el ámbito actual hacia la raíz léxica.</p></article>
+              <article class="card"><h3>updateSymbol</h3><p>Actualiza tipo, estado, firmas y metadatos sin cambiar identidad.</p></article>
+              <article class="card"><h3>enter / exit</h3><p>Construye el árbol de bloques, funciones, clases y ciclos.</p></article>
+            </div>
+          </div>
+          <img class="visual" src="assets/scopes-symbol-table-neobrutalist.png" alt="Referencia visual neobrutalista de ámbitos anidados conectados con la tabla de símbolos.">
+        </div>
+      </section>
+
+      <section class="slide" data-title="Funciones y clases">
+        <div class="slide-scroll">
+          <span class="kicker">08 · Construcciones avanzadas</span>
+          <h2>Funciones, closures, clases y herencia</h2>
+          <div class="grid-4">
+            <article class="card"><span class="card-number">FUNCIONES</span><h3>Firmas posicionales</h3><p>Valida cantidad y tipo de cada argumento, además del valor retornado.</p></article>
+            <article class="card"><span class="card-number">CLOSURES</span><h3>Capturas léxicas</h3><p>Marca variables usadas desde una función anidada como captured.</p></article>
+            <article class="card"><span class="card-number">CLASES</span><h3>Identidad por ámbito</h3><p>Clases homónimas pueden existir en ámbitos hermanos sin confundirse.</p></article>
+            <article class="card"><span class="card-number">HERENCIA</span><h3>Miembros transitivos</h3><p>Campos y métodos se buscan en la clase y luego en sus ancestros.</p></article>
+          </div>
+          <pre class="code"><span class="kw">function</span> crearContador(): <span class="type">integer</span> {
+  <span class="kw">let</span> total: <span class="type">integer</span> = <span class="lit">0</span>;
+  <span class="kw">function</span> incrementar() { total = total + <span class="lit">1</span>; <span class="kw">return</span> total; }
+  <span class="kw">return</span> incrementar();
+}</pre>
+        </div>
+      </section>
+
+      <section class="slide" data-title="Diagnósticos">
+        <div class="slide-scroll">
+          <span class="kicker">09 · Diagnósticos</span>
+          <h2>Mensajes estables, localizados y accionables</h2>
+          <p class="lead">Los códigos permiten probar reglas sin depender del texto exacto del mensaje.</p>
+          <div class="diagnostic-list">
+            <div class="diag"><code>SEM001</code><span>L8:C13</span><strong>Identificador no declarado</strong></div>
+            <div class="diag"><code>SEM003</code><span>L4:C1</span><strong>Asignación o inicialización incompatible</strong></div>
+            <div class="diag"><code>SEM008</code><span>L16:C5</span><strong>Retorno incompatible con la firma</strong></div>
+            <div class="diag"><code>SEM012</code><span>L23:C17</span><strong>Miembro inexistente en una clase</strong></div>
+            <div class="diag"><code>SEM018</code><span>L31:C3</span><strong>Código inalcanzable después de una terminación</strong></div>
+            <div class="diag"><code>SEM023</code><span>L6:C7</span><strong>Variable utilizada antes de inicializarse</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-title="Interfaz">
+        <div class="slide-scroll split">
+          <div>
+            <span class="kicker">10 · Experiencia de uso</span>
+            <h2>Un workbench para explicar, no solo para ejecutar</h2>
+            <p class="lead">La interfaz reorganiza la información en una guía lateral, un editor dominante y un explorador de resultados por capas.</p>
+            <div class="checklist">
+              <div class="check"><b>1</b><span>Casos guiados y carga de archivos .cps</span><small>ENTRADA</small></div>
+              <div class="check"><b>2</b><span>Estado visible de lexer, parser y semántica</span><small>PROCESO</small></div>
+              <div class="check"><b>3</b><span>Pestañas para diagnósticos, símbolos, ámbitos y árboles</span><small>SALIDA</small></div>
+              <div class="check"><b>4</b><span>Filtros, métricas y exportaciones</span><small>EXPLICACIÓN</small></div>
+            </div>
+          </div>
+          <div class="mock-app" aria-label="Representación visual del workbench del IDE">
+            <div class="mock-top"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+            <div class="mock-body"><div class="mock-side"><i></i><i></i><i></i><i></i><i></i></div><div class="mock-main"><div class="mock-editor"></div><div class="mock-result"></div></div></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-title="Pruebas">
+        <div class="slide-scroll">
+          <span class="kicker">11 · Calidad</span>
+          <h2>La cobertura se demuestra con casos reproducibles</h2>
+          <div class="grid-4">
+            <article class="card stat"><strong>115</strong><span>pruebas aprobadas</span><small>7 suites Vitest</small></article>
+            <article class="card stat"><strong>7</strong><span>archivos de prueba</span><small>lexer + parser + semántica + rúbrica</small></article>
+            <article class="card stat"><strong>23</strong><span>códigos semánticos</span><small>SEM001–SEM023</small></article>
+            <article class="card stat"><strong>4</strong><span>operaciones de tabla</span><small>rúbrica directa</small></article>
+          </div>
+          <table class="rule-table">
+            <thead><tr><th>Categoría</th><th>Casos válidos</th><th>Casos fallidos</th><th>Evidencia</th></tr></thead>
+            <tbody><tr><td>Tipos</td><td>promoción, lógica, listas</td><td>operadores, asignación, índices</td><td>semanticAnalyzer.test.ts</td></tr><tr><td>Ámbitos</td><td>shadowing y padres</td><td>redeclaración y escape</td><td>scopeManager.test.ts</td></tr><tr><td>Funciones y clases</td><td>recursión, closures, herencia</td><td>argumentos, retorno, miembros</td><td>semanticAnalyzer.test.ts</td></tr><tr><td>Lexer</td><td>tokenización</td><td>errores léxicos recuperables</td><td>lexer.test.ts</td></tr><tr><td>Parser</td><td>programas integrales</td><td>errores sintácticos recuperables</td><td>parser.test.ts</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="slide" data-title="Correcciones">
+        <div class="slide-scroll">
+          <span class="kicker">12 · Refactor aplicado</span>
+          <h2>Errores encontrados y corregidos</h2>
+          <div class="grid-2">
+            <article class="card"><span class="card-number">ÁMBITOS</span><h3>Clases locales</h3><p>Las clases ya no se almacenan globalmente por nombre. Ahora poseen identidad y resolución léxica.</p></article>
+            <article class="card"><span class="card-number">INFERENCIA</span><h3>Campos y retornos</h3><p>Los campos se infieren antes de métodos y las funciones sin anotación obtienen un retorno observado.</p></article>
+            <article class="card"><span class="card-number">REFERENCIAS</span><h3>Miembros actualizados</h3><p>Los usos de clases, campos y métodos se reflejan en la tabla de símbolos.</p></article>
+            <article class="card"><span class="card-number">GRAMÁTICA</span><h3>Bloques obligatorios</h3><p>Las estructuras de control vuelven a coincidir con la gramática base entregada.</p></article>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-title="Rúbrica">
+        <div class="slide-scroll">
+          <span class="kicker">13 · Trazabilidad</span>
+          <h2>Cobertura directa de la evaluación</h2>
+          <div class="checklist">
+            <div class="check"><b>1</b><span>IDE para escribir, cargar y compilar código</span><small>15 PUNTOS</small></div>
+            <div class="check"><b>2</b><span>Parser ANTLR, visitor, sistema de tipos y reglas semánticas</span><small>60 PUNTOS</small></div>
+            <div class="check"><b>3</b><span>Tabla de símbolos con inserción, recuperación, actualización y ámbitos</span><small>25 PUNTOS</small></div>
+            <div class="check"><b>4</b><span>Árbol sintáctico y árbol semántico visuales</span><small>VISUAL</small></div>
+            <div class="check"><b>5</b><span>Documentación, informe y comandos reproducibles</span><small>ENTREGA</small></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-title="Demostración">
+        <div class="slide-scroll split split-60">
+          <div>
+            <span class="kicker">14 · Guion de demostración</span>
+            <h2>Cómo explicar el proyecto en vivo</h2>
+            <ol class="demo-flow">
+              <li><div><strong>Ejecutar el caso válido</strong><span>Mostrar las tres fases en verde y revisar métricas.</span></div></li>
+              <li><div><strong>Abrir tabla y ámbitos</strong><span>Explicar resolución local, padres y referencias.</span></div></li>
+              <li><div><strong>Ejecutar errores semánticos</strong><span>Filtrar SEM003, SEM008 y SEM012.</span></div></li>
+              <li><div><strong>Modificar el editor</strong><span>Corregir un error y volver a analizar con Ctrl + Enter.</span></div></li>
+              <li><div><strong>Mostrar árboles y pruebas</strong><span>Conectar implementación, visualización y evidencia.</span></div></li>
+            </ol>
+          </div>
+          <pre class="code"><span class="kw">let</span> total: <span class="type">integer</span> = <span class="bad">"texto"</span>;
+
+<span class="kw">function</span> sumar(a: <span class="type">integer</span>): <span class="type">integer</span> {
+  <span class="kw">return</span> a;
+}
+
+sumar(<span class="lit">1</span>, <span class="bad">2</span>);
+print(<span class="bad">noExiste</span>);</pre>
+        </div>
+      </section>
+
+      <section class="slide" data-title="Ejecución">
+        <div class="slide-scroll split">
+          <div>
+            <span class="kicker">15 · Reproducibilidad</span>
+            <h2>Instalación y verificación</h2>
+            <p class="lead">La aplicación reside en <code>compiscript-ide-work</code> y comparte el mismo motor entre web, escritorio y CLI.</p>
+            <div class="chips"><span class="chip">Node.js 20+</span><span class="chip">npm</span><span class="chip">Java para regenerar ANTLR</span></div>
+          </div>
+          <pre class="code">cd compiscript-ide-work
+npm install
+npm run generate
+npm test
+npm run build
+npm run dev
+
+# CLI semántica
+npm run cli -- examples/semantic/valid_complete.cps</pre>
+        </div>
+      </section>
+
+      <section class="slide" data-title="Cierre">
+        <div class="slide-scroll">
+          <span class="kicker">16 · Conclusiones</span>
+          <h2>Un compilador debe poder <span class="accent">explicar sus decisiones</span></h2>
+          <p class="lead">Compiscript Semantic IDE conecta teoría, implementación y evidencia: reconoce el lenguaje, valida su significado y expone cada resultado de forma inspeccionable.</p>
+          <div class="grid-3">
+            <article class="card"><h3>Correctitud</h3><p>Reglas centralizadas, ámbitos léxicos reales y diagnósticos estables.</p></article>
+            <article class="card"><h3>Trazabilidad</h3><p>Del código fuente al símbolo, tipo, ámbito y nodo semántico.</p></article>
+            <article class="card"><h3>Demostrabilidad</h3><p>IDE interactivo, CLI, pruebas automatizadas, documentación e informe.</p></article>
+          </div>
+          <div class="chips"><span class="chip">Grupo DragonsSlayers 2.0</span><span class="chip">Sección 10</span><span class="chip">Proyecto 1</span></div>
+        </div>
+        <aside class="speaker-note">Cierre resaltando que la interfaz no inventa datos: representa el resultado real del visitor semántico.</aside>
+      </section>
+    </div>
+
+    <footer class="footer-controls">
+      <span class="shortcuts">← → navegar · O vista general · N notas · Inicio/Fin</span>
+      <div class="nav-actions"><button class="nav-button" id="prev">Anterior</button><button class="nav-button" id="overview">Vista general</button><button class="nav-button" id="notes">Notas</button><button class="nav-button" id="next">Siguiente</button></div>
+    </footer>
+  </main>
+
+  <script>
+    const slides = [...document.querySelectorAll('.slide')];
+    const counter = document.getElementById('counter');
+    const progress = document.getElementById('progress');
+    const prev = document.getElementById('prev');
+    const next = document.getElementById('next');
+    const overview = document.getElementById('overview');
+    const notes = document.getElementById('notes');
+    let index = 0;
+
+    function render() {
+      slides.forEach((slide, position) => slide.classList.toggle('active', position === index));
+      counter.textContent = `${String(index + 1).padStart(2, '0')} / ${String(slides.length).padStart(2, '0')}`;
+      progress.style.width = `${((index + 1) / slides.length) * 100}%`;
+      prev.disabled = index === 0;
+      next.disabled = index === slides.length - 1;
+      document.title = `${slides[index].dataset.title} | Compiscript Semantic IDE`;
+      document.querySelectorAll('.speaker-note').forEach(note => note.classList.remove('visible'));
+    }
+    function go(delta) { index = Math.max(0, Math.min(slides.length - 1, index + delta)); render(); }
+    function toggleOverview() { document.body.classList.toggle('overview'); overview.textContent = document.body.classList.contains('overview') ? 'Presentar' : 'Vista general'; }
+    function toggleNotes() { slides[index].querySelector('.speaker-note')?.classList.toggle('visible'); }
+    prev.addEventListener('click', () => go(-1));
+    next.addEventListener('click', () => go(1));
+    overview.addEventListener('click', toggleOverview);
+    notes.addEventListener('click', toggleNotes);
+    document.addEventListener('keydown', event => {
+      if (['ArrowRight', 'PageDown', ' '].includes(event.key)) { event.preventDefault(); go(1); }
+      if (['ArrowLeft', 'PageUp'].includes(event.key)) { event.preventDefault(); go(-1); }
+      if (event.key === 'Home') { index = 0; render(); }
+      if (event.key === 'End') { index = slides.length - 1; render(); }
+      if (event.key.toLowerCase() === 'o') toggleOverview();
+      if (event.key.toLowerCase() === 'n') toggleNotes();
+    });
+    render();
+  </script>
+</body>
+</html>

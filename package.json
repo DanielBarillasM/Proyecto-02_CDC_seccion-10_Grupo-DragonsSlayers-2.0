@@ -1,0 +1,104 @@
+{
+  "name": "dlp-proyectos-01-02-antlr",
+  "version": "1.2.0",
+  "private": true,
+  "description": "IDE de Compiscript con análisis léxico, sintáctico y semántico, tabla de símbolos y ámbitos usando ANTLR4 + TypeScript.",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "generate": "antlr4ts -Xexact-output-dir -visitor -no-listener -o src/generated src/grammars/Compiscript.g4",
+    "dev": "vite --host 0.0.0.0 --port 3000",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 3000",
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:examples": "vitest run src/__tests__/semantic/projectExamples.test.ts",
+    "test:watch": "vitest",
+    "cli": "tsx src/cli/run.ts",
+    "cli:valid": "tsx src/cli/run.ts examples/compiscript/valid.cps --mode parser",
+    "cli:error-lex": "tsx src/cli/run.ts examples/compiscript/lexical_errors.cps --mode lexer",
+    "cli:error-syn": "tsx src/cli/run.ts examples/compiscript/syntax_errors.cps --mode parser",
+    "desktop": "npm run build && electron .",
+    "exe:portable": "npm run build && electron-builder --win portable --x64",
+    "exe:installer": "npm run build && electron-builder --win nsis --x64",
+    "exe:mac": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --x64 --arm64",
+    "exe:linux": "npm run build && electron-builder --linux --x64",
+    "cli:semantic-valid": "tsx src/cli/run.ts examples/semantic/valid_complete.cps --mode semantic",
+    "cli:semantic-errors": "tsx src/cli/run.ts examples/semantic/semantic_errors.cps --mode semantic",
+    "cli:semantic-symbols": "tsx src/cli/run.ts examples/semantic/symbol_table_demo.cps --mode semantic"
+  },
+  "build": {
+    "appId": "gt.edu.uvg.dlpantlr",
+    "productName": "Compiscript Semantic IDE",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "Compiscript-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "Compiscript-Portable-${version}.${ext}"
+    },
+    "mac": {
+      "target": [
+        "zip",
+        "dmg"
+      ],
+      "category": "public.app-category.developer-tools",
+      "identity": null,
+      "artifactName": "Compiscript-${version}-${arch}.${ext}"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Development",
+      "artifactName": "Compiscript-${version}-${arch}.${ext}"
+    }
+  },
+  "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "antlr4ts": "^0.5.0-alpha.4",
+    "assert": "^2.1.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
+    "lucide-react": "^0.468.0",
+    "monaco-editor": "^0.56.0",
+    "process": "^0.11.10",
+    "radix-ui": "^1.6.7",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-resizable-panels": "^4.12.3",
+    "tailwind-merge": "^3.6.0",
+    "tailwindcss": "^4.3.3",
+    "util": "^0.12.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "antlr4ts-cli": "^0.5.0-alpha.4",
+    "electron": "^43.2.0",
+    "electron-builder": "^26.15.3",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vite": "^6.0.0",
+    "vitest": "^3.2.0"
+  }
+}
