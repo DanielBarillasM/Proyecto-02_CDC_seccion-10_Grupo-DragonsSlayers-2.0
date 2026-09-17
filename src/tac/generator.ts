@@ -134,12 +134,11 @@ export function generateTac(program: ParseTree, semantic: SemanticAnalysisResult
         emit("IF_TRUE", { arg1: left, result: tacOperand(shortCircuit, "label"), source: sourceOf(node as never) });
       }
       const right = expr(kids[2]);
-      emit("MOV", { arg1: tacOperand(operator === "&&", "constant"), result: tacOperand(result.name, "temporary"), source: sourceOf(node as never) });
+      emit("MOV", { arg1: right, result: tacOperand(result.name, "temporary"), source: sourceOf(node as never) });
       emit("GOTO", { arg1: tacOperand(end, "label") });
       emit("LABEL", { result: tacOperand(shortCircuit, "label") });
       emit("MOV", { arg1: tacOperand(operator === "||", "constant"), result: tacOperand(result.name, "temporary"), source: sourceOf(node as never) });
       emit("LABEL", { result: tacOperand(end, "label") });
-      void right;
       return tacOperand(result.name, "temporary");
     }
 
