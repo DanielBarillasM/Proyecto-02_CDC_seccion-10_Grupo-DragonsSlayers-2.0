@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Braces, Database, Download, FlaskConical, FolderTree, ListChecks, Network, Search, Split } from "lucide-react";
+import { Braces, Database, Download, FlaskConical, FolderTree, ListChecks, Network, Search, Split, Workflow } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,7 +17,7 @@ import { SemanticTreePanel } from "./SemanticTreePanel";
 import { SymbolTablePanel } from "./SymbolTablePanel";
 import { TestsPanel } from "./TestsPanel";
 
-export type DockTabId = "resultado" | "simbolos" | "ambitos" | "arboles" | "tac" | "documentacion" | "exportar" | "pruebas";
+export type DockTabId = "resultado" | "simbolos" | "ambitos" | "arboles" | "tac" | "visual" | "documentacion" | "exportar" | "pruebas";
 
 interface RightDockProps {
   result: AnalyzeResult | null;
@@ -91,6 +91,40 @@ function TacInspector({ result }: { result: AnalyzeResult }) {
   );
 }
 
+function TacVisualPanel({ result }: { result: AnalyzeResult }) {
+  const instructions = result.tac.instructions;
+  const labels = useMemo(() => new Map(instructions.filter((item) => item.op === "LABEL").map((item) => [String(item.result?.value), item.index])), [instructions]);
+  const blocks = useMemo(() => {
+    const starts = [0, ...instructions.filter((item) => item.op === "LABEL").map((item) => item.index)];
+    return [...new Set(starts)].sort((a, b) => a - b).map((start, index, all) => {
+      const end = all[index + 1] ?? instructions.length;
+      const block = instructions.slice(start, end);
+      return { id: `B${index}`, start, block, title: block.find((item) => item.op === "LABEL")?.result?.value ?? `entrada_${index}` };
+    });
+  }, [instructions]);
+  const edges = useMemo(() => blocks.flatMap((block, index) => {
+    const last = block.block[block.block.length - 1];
+    const target = last?.result?.kind === "label" ? labels.get(String(last.result.value)) : undefined;
+    const outgoing = target === undefined ? (index < blocks.length - 1 ? [index + 1] : []) : [blocks.findIndex((candidate) => candidate.start === target)];
+    return outgoing.filter((value) => value >= 0).map((to) => ({ from: index, to, conditional: last?.op === "IF_TRUE" || last?.op === "IF_FALSE" }));
+  }), [blocks, labels]);
+  const width = Math.max(720, blocks.length * 220);
+  return (
+    <div className="flex flex-col gap-3 p-3">
+      <div><p className="text-sm font-head uppercase tracking-wide">Mapa visual del TAC</p><p className="mt-1 text-xs text-muted-foreground">Bloques básicos, saltos y rutas de control de la representación intermedia.</p></div>
+      {result.tac.status === "skipped" ? <p className="text-sm text-muted-foreground">{result.tac.skipReason}</p> : (
+        <div className="overflow-auto rounded-lg border bg-[#0d1217] p-3">
+          <svg width={width} height={Math.max(260, blocks.length * 150)} role="img" aria-label="Grafo de flujo del código de tres direcciones" className="font-mono">
+            <defs><marker id="tac-arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="hsl(var(--primary))" /></marker></defs>
+            {edges.map((edge, index) => { const x1 = edge.from * 220 + 170; const y1 = 80; const x2 = edge.to * 220 + 20; const y2 = 80; return <path key={`${edge.from}-${edge.to}-${index}`} d={`M ${x1} ${y1} C ${x1 + 35} ${y1 - 45}, ${x2 - 35} ${y2 - 45}, ${x2} ${y2}`} fill="none" stroke="hsl(var(--primary))" strokeOpacity="0.65" strokeWidth="2" markerEnd="url(#tac-arrow)" />; })}
+            {blocks.map((block, index) => { const x = index * 220; const preview = block.block.slice(0, 4).map((item) => formatTac([item])).join("\\n"); return <g key={block.id} transform={`translate(${x}, 30)`}><rect width="175" height="100" rx="8" fill="#18212a" stroke="hsl(var(--primary))" strokeOpacity="0.7" /><text x="12" y="20" fill="hsl(var(--primary))" fontSize="11" fontWeight="700">{block.id} · {String(block.title).slice(0, 18)}</text>{preview.split("\\n").map((line, lineIndex) => <text key={lineIndex} x="12" y={40 + lineIndex * 16} fill="white" fontSize="10">{line.slice(0, 25)}</text>)}<text x="12" y="91" fill="#94a3b8" fontSize="9">{block.block.length} instrucciones</text></g>; })}
+          </svg>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function RightDock({ result, inputText, activeTab, onTabChange, onSelectScope, onLoadTestSource }: RightDockProps) {
   return (
     <Tabs value={activeTab} onValueChange={(next) => onTabChange(next as DockTabId)} className="flex h-full flex-col gap-0">
@@ -109,6 +143,9 @@ export function RightDock({ result, inputText, activeTab, onTabChange, onSelectS
         </TabsTrigger>
         <TabsTrigger value="tac" className="gap-1.5 bg-primary/15 px-2 text-xs font-semibold">
           <Split size={14} /> <span>TAC</span>
+        </TabsTrigger>
+        <TabsTrigger value="visual" className="gap-1.5 px-2 text-xs">
+          <Workflow size={14} /> <span>Visual</span>
         </TabsTrigger>
         <TabsTrigger value="documentacion" className="gap-1.5 px-2 text-xs">
           <Braces size={14} /> <span>Docs</span>
@@ -162,6 +199,12 @@ export function RightDock({ result, inputText, activeTab, onTabChange, onSelectS
       <TabsContent value="tac" className="flex-1 overflow-hidden">
         <ScrollArea className="h-full">
           {result ? <TacInspector result={result} /> : <EmptyPanel icon={<Split size={22} />} text="Ejecuta el análisis para generar TAC." />}
+        </ScrollArea>
+      </TabsContent>
+
+      <TabsContent value="visual" className="flex-1 overflow-hidden">
+        <ScrollArea className="h-full">
+          {result ? <TacVisualPanel result={result} /> : <EmptyPanel icon={<Workflow size={22} />} text="Ejecuta el análisis para visualizar el flujo TAC." />}
         </ScrollArea>
       </TabsContent>
 

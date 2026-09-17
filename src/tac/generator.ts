@@ -134,6 +134,19 @@ export function generateTac(program: ParseTree, semantic: SemanticAnalysisResult
       return tacOperand(objectTemp.name, "temporary");
     }
 
+    const findLogical = (candidate: ParseTree): ParseTree | undefined => {
+      const candidateKids = children(candidate);
+      if (candidateKids.length >= 3 && (text(candidateKids[1]) === "&&" || text(candidateKids[1]) === "||")) return candidate;
+      for (const child of candidateKids) {
+        if (text(child).includes("&&") || text(child).includes("||")) {
+          const found = findLogical(child);
+          if (found) return found;
+        }
+      }
+      return undefined;
+    };
+    const logicalNode = (raw.includes("&&") || raw.includes("||")) ? findLogical(node) : undefined;
+    if (logicalNode && logicalNode !== node) return expr(logicalNode);
     if (kids.length === 1) return expr(kids[0]);
 
     // Unarios: - ! +

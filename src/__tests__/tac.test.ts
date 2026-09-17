@@ -42,6 +42,12 @@ describe("TAC core", () => {
     expect(new Set(result.tac.instructions.map((instruction) => instruction.scopeId)).size).toBeGreaterThan(1);
   });
 
+  it("keeps TAC source locations and monotonic indices", () => {
+    const result = analyzeInput("let value: integer = 7; print(value);", "tac");
+    expect(result.tac.instructions.every((instruction, index) => instruction.index === index)).toBe(true);
+    expect(result.tac.instructions.some((instruction) => instruction.source?.line === 1)).toBe(true);
+  });
+
   it("resets labels and reuses released temporaries", () => {
     const labels = new LabelFactory();
     expect(labels.next("if")).toBe("L_if_0");
