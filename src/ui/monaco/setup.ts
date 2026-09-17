@@ -1,17 +1,8 @@
 import * as monaco from "monaco-editor";
 import { loader } from "@monaco-editor/react";
-import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
-
-// Electron loads the app from file://, so Monaco must never reach out to a
-// CDN for its runtime or its worker. loader.config binds @monaco-editor/react
-// to the copy of monaco-editor bundled by Vite, and MonacoEnvironment points
-// every worker request at the same bundled worker chunk.
-(self as unknown as { MonacoEnvironment: monaco.Environment }).MonacoEnvironment = {
-  getWorker() {
-    return new EditorWorker();
-  }
-};
-
+// Use the bundled Monaco instance for the React wrapper. Vite handles Monaco's
+// worker loading in the browser build, while the Electron shell can provide its
+// own worker policy at runtime.
 loader.config({ monaco });
 
 const LANGUAGE_ID = "compiscript";
